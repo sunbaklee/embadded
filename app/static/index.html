@@ -87,66 +87,6 @@
       </div>
     </section>
 
-    <section class="monitoring-grid" aria-label="센서 분석 현황">
-      <article class="insight-card receive-card">
-        <div class="card-heading">
-          <div>
-            <p class="eyebrow">데이터 파이프라인</p>
-            <h2>센서 수신 로그</h2>
-          </div>
-          <span class="live-chip"><i></i>LIVE</span>
-        </div>
-        <div id="receive-log" class="receive-log">
-          <div class="empty-state compact"><strong>수신 대기 중</strong></div>
-        </div>
-      </article>
-
-      <article class="insight-card criteria-card">
-        <div class="card-heading">
-          <div>
-            <p class="eyebrow">판단 알고리즘</p>
-            <h2>위험 판단 기준</h2>
-          </div>
-          <span class="algorithm-chip">RULE ENGINE</span>
-        </div>
-        <div id="criteria-list" class="criteria-list">
-          <div class="criterion warning">
-            <span>주의</span>
-            <strong>기준 불러오는 중</strong>
-          </div>
-          <div class="criterion danger">
-            <span>위험</span>
-            <strong>기준 불러오는 중</strong>
-          </div>
-          <div class="criterion check">
-            <span>확인</span>
-            <strong>압력 감지 유지 + 움직임 없음</strong>
-          </div>
-        </div>
-      </article>
-
-      <article class="insight-card activity-card">
-        <div class="card-heading chart-heading">
-          <div>
-            <p class="eyebrow">활동 분석</p>
-            <h2>움직임 감지 타임라인</h2>
-          </div>
-          <div class="range-tabs" aria-label="그래프 조회 범위">
-            <button type="button" data-hours="1">1시간</button>
-            <button type="button" data-hours="6" class="active">6시간</button>
-            <button type="button" data-hours="24">24시간</button>
-          </div>
-        </div>
-        <div id="activity-chart" class="activity-chart">
-          <div class="chart-empty">활동 데이터를 불러오는 중입니다.</div>
-        </div>
-        <div class="chart-legend">
-          <span><i class="detected"></i>움직임 감지</span>
-          <span><i></i>수신 없음/변화 없음</span>
-        </div>
-      </article>
-    </section>
-
     <section aria-labelledby="devices-title">
       <div class="section-title">
         <div>
@@ -189,6 +129,66 @@
           <div class="empty-state compact"><strong>센서 기록이 없습니다</strong></div>
         </div>
       </div>
+    </section>
+
+    <section class="monitoring-grid" aria-label="센서 분석 현황">
+      <article class="insight-card activity-card">
+        <div class="card-heading chart-heading">
+          <div>
+            <p class="eyebrow">활동 분석</p>
+            <h2>움직임 감지 타임라인</h2>
+          </div>
+          <div class="range-tabs" aria-label="그래프 조회 범위">
+            <button type="button" data-hours="1">1시간</button>
+            <button type="button" data-hours="6" class="active">6시간</button>
+            <button type="button" data-hours="24">24시간</button>
+          </div>
+        </div>
+        <div id="activity-chart" class="activity-chart">
+          <div class="chart-empty">활동 데이터를 불러오는 중입니다.</div>
+        </div>
+        <div class="chart-legend">
+          <span><i class="detected"></i>움직임 감지</span>
+          <span><i></i>수신 없음/변화 없음</span>
+        </div>
+      </article>
+
+      <article class="insight-card receive-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">데이터 파이프라인</p>
+            <h2>센서 수신 로그</h2>
+          </div>
+          <span class="live-chip"><i></i>LIVE</span>
+        </div>
+        <div id="receive-log" class="receive-log">
+          <div class="empty-state compact"><strong>수신 대기 중</strong></div>
+        </div>
+      </article>
+
+      <article class="insight-card criteria-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">판단 알고리즘</p>
+            <h2>위험 판단 기준</h2>
+          </div>
+          <span class="algorithm-chip">RULE ENGINE</span>
+        </div>
+        <div id="criteria-list" class="criteria-list">
+          <div class="criterion warning">
+            <span>주의</span>
+            <strong>기준 불러오는 중</strong>
+          </div>
+          <div class="criterion danger">
+            <span>위험</span>
+            <strong>기준 불러오는 중</strong>
+          </div>
+          <div class="criterion check">
+            <span>확인</span>
+            <strong>압력 감지 유지 + 움직임 없음</strong>
+          </div>
+        </div>
+      </article>
     </section>
   </main>
 
