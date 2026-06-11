@@ -22,6 +22,7 @@ class Settings:
         os.getenv("INACTIVITY_THRESHOLD_SECONDS", "43200")
     )
     pressure_delta_threshold = int(os.getenv("PRESSURE_DELTA_THRESHOLD", "100"))
+    sensor_offline_seconds = int(os.getenv("SENSOR_OFFLINE_SECONDS", "30"))
     log_limit_max = int(os.getenv("LOG_LIMIT_MAX", "500"))
 
 

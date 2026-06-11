@@ -7,6 +7,7 @@ const char* WIFI_SSID = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 const char* SERVER_URL = "http://192.168.0.10:8000/api/sensor-data";
 const char* DEVICE_ID = "room_001";
+const char* DEVICE_LOCATION = "침실";
 
 const int PIR_PIN = 27;
 const int PRESSURE_PIN = 34;
@@ -42,6 +43,10 @@ void sendSensorData() {
   document["pir_motion"] = pirMotion;
   document["pressure_detected"] = pressureDetected;
   document["pressure_value"] = pressureValue;
+  document["wifi_rssi"] = WiFi.RSSI();
+  document["location"] = DEVICE_LOCATION;
+  // 배터리 측정 회로가 있다면 0~100 값을 함께 전송할 수 있습니다.
+  // document["battery_level"] = 87;
 
   String body;
   serializeJson(document, body);

@@ -1,15 +1,32 @@
-from fastapi import APIRouter, Depends, Query
+from datetime import timedelta
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import Device, SensorLog
-from app.schemas import DeviceResponse, LogResponse, StatusResponse
+from app.models import Device, SensorLog, utc_now
+from app.schemas import (
+    ActivityBucketResponse,
+    DeviceResponse,
+    LogResponse,
+    StatusResponse,
+)
+from app.services.status_service import as_utc
 from app.services.status_service import inactive_seconds, refresh_device_status
 
 
 router = APIRouter(prefix="/api", tags=["status"])
+
+
+@router.get("/config")
+def get_monitoring_config():
+    return {
+        "warning_seconds": settings.inactivity_threshold_seconds // 2,
+        "danger_seconds": settings.inactivity_threshold_seconds,
+        "pressure_delta_threshold": settings.pressure_delta_threshold,
+        "sensor_offline_seconds": settings.sensor_offline_seconds,
+    }
 
 
 @router.get("/status", response_model=list[StatusResponse])
@@ -66,3 +83,45 @@ def get_logs(
         )
         for log, name in db.execute(statement).all()
     ]
+
+
+@router.get("/activity", response_model=list[ActivityBucketResponse])
+def get_activity(
+    hours: int = Query(default=6),
+    device_id: str | None = None,
+    buckets: int = Query(default=12, ge=6, le=24),
+    db: Session = Depends(get_db),
+):
+    if hours not in {1, 6, 24}:
+        raise HTTPException(status_code=422, detail="hours must be 1, 6, or 24")
+
+    end = utc_now()
+    start = end - timedelta(hours=hours)
+    statement = (
+        select(SensorLog)
+        .join(Device)
+        .where(SensorLog.received_at >= start)
+        .order_by(SensorLog.received_at)
+    )
+    if device_id:
+        statement = statement.where(Device.device_id == device_id)
+
+    bucket_seconds = hours * 3600 / buckets
+    result = [
+        {
+            "started_at": start + timedelta(seconds=index * bucket_seconds),
+            "ended_at": start + timedelta(seconds=(index + 1) * bucket_seconds),
+            "total_count": 0,
+            "activity_count": 0,
+        }
+        for index in range(buckets)
+    ]
+
+    for log in db.scalars(statement):
+        elapsed = (as_utc(log.received_at) - start).total_seconds()
+        index = min(buckets - 1, max(0, int(elapsed / bucket_seconds)))
+        result[index]["total_count"] += 1
+        if log.activity_detected:
+            result[index]["activity_count"] += 1
+
+    return [ActivityBucketResponse(**bucket) for bucket in result]

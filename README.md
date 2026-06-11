@@ -10,6 +10,8 @@ PIR 센서와 압력 센서로 생활 활동을 비접촉 감지하고, 장시�
 - 열린 danger 알림 중복 생성 방지
 - 활동 재감지 시 정상 복구 및 열린 알림 자동 해제
 - 웹 대시보드 5초 자동 갱신
+- 최근 1시간/6시간/24시간 활동 감지 그래프
+- 장치별 온라인 상태, 배터리, Wi-Fi 신호, 설치 위치 표시
 - 센서 없이 상태를 재현하는 개발용 시뮬레이션
 - Windows Docker Desktop 및 Raspberry Pi ARM64 공통 구성
 - Docker named volume을 사용한 DB 영구 저장
@@ -119,6 +121,7 @@ HOST_PORT=8000
 DATABASE_URL=sqlite:////app/data/lonecare.db
 INACTIVITY_THRESHOLD_SECONDS=43200
 PRESSURE_DELTA_THRESHOLD=100
+SENSOR_OFFLINE_SECONDS=30
 ```
 
 운영에서는 개발 override를 제외하고 기본 파일만 명시합니다.
@@ -223,6 +226,7 @@ const char* WIFI_SSID = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 const char* SERVER_URL = "http://192.168.0.10:8000/api/sensor-data";
 const char* DEVICE_ID = "room-bedroom-001";
+const char* DEVICE_LOCATION = "침실";
 ```
 
 핀 번호도 실제 배선에 맞게 확인합니다.
@@ -236,6 +240,27 @@ Arduino IDE에서 업로드한 뒤 Serial Monitor를 `115200 baud`로 열어
 `POST 201` 또는 `POST 200` 계열 응답이 출력되는지 확인합니다. 기기를 한 대
 더 추가하려면 같은 코드를 새 ESP32에 업로드하되 `DEVICE_ID`만 겹치지 않게
 변경합니다.
+
+센서 요청에는 다음 선택 정보를 함께 보낼 수 있습니다. 보내지 않아도 기존
+요청은 정상 처리되며 대시보드에는 `정보 없음`으로 표시됩니다.
+
+| 필드 | 형식 | 설명 |
+|---|---|---|
+| `battery_level` | 0~100 정수 | 배터리 잔량(%) |
+| `wifi_rssi` | -120~0 정수 | Wi-Fi RSSI(dBm) |
+| `location` | 문자열 | 설치 위치 |
+
+```json
+{
+  "device_id": "room-bedroom-001",
+  "pir_motion": true,
+  "pressure_detected": false,
+  "pressure_value": 1234,
+  "battery_level": 87,
+  "wifi_rssi": -58,
+  "location": "침실"
+}
+```
 
 ### 5. 센서 없이 테스트 기기 추가
 
@@ -281,9 +306,11 @@ docker compose logs --tail 100 web
 | Method | 경로 | 설명 |
 |---|---|---|
 | POST | `/api/sensor-data` | 센서 데이터 저장 |
+| GET | `/api/config` | 위험 판단 및 오프라인 기준 조회 |
 | GET | `/api/status` | 장치별 현재 상태와 무활동 시간 |
 | GET | `/api/devices` | 등록 장치 목록 |
 | GET | `/api/logs` | 최근 센서 로그 |
+| GET | `/api/activity?hours=6` | 시간 구간별 센서 수신/활동 집계 |
 | GET | `/api/alerts` | 알림 목록 |
 | POST | `/api/alerts/{alert_id}/resolve` | 안전 확인 완료 및 장치 상태 정상 복구 |
 | GET | `/api/simulation` | 시뮬레이션 활성화 여부 확인 |

@@ -53,6 +53,11 @@ def create_scenario(payload: SimulationCreate, db: Session = Depends(get_db)):
     device.last_seen_at = now
     device.last_activity_at = now - timedelta(seconds=elapsed)
     device.last_pressure_value = 1200
+    device.last_pir_motion = payload.scenario == "normal"
+    device.last_pressure_detected = payload.scenario != "normal"
+    device.battery_level = 87
+    device.wifi_rssi = -58
+    device.location = "침실"
 
     if payload.scenario != "danger":
         resolve_open_alerts(db, device, reason="simulation_state_changed")

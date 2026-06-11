@@ -42,6 +42,14 @@ def receive_sensor_data(payload: SensorDataCreate, db: Session = Depends(get_db)
 
     device.last_seen_at = now
     device.last_pressure_value = payload.pressure_value
+    device.last_pir_motion = payload.pir_motion
+    device.last_pressure_detected = payload.pressure_detected
+    if payload.battery_level is not None:
+        device.battery_level = payload.battery_level
+    if payload.wifi_rssi is not None:
+        device.wifi_rssi = payload.wifi_rssi
+    if payload.location is not None:
+        device.location = payload.location
     if activity_detected:
         device.last_activity_at = now
         device.status = "normal"

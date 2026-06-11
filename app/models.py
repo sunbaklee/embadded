@@ -23,6 +23,11 @@ class Device(Base):
         DateTime(timezone=True), default=utc_now
     )
     last_pressure_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_pir_motion: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_pressure_detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    battery_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    wifi_rssi: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    location: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
     )

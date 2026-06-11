@@ -9,6 +9,9 @@ class SensorDataCreate(BaseModel):
     pir_motion: bool
     pressure_detected: bool
     pressure_value: float
+    battery_level: int | None = Field(default=None, ge=0, le=100)
+    wifi_rssi: int | None = Field(default=None, ge=-120, le=0)
+    location: str | None = Field(default=None, min_length=1, max_length=100)
 
 
 class SensorDataResponse(BaseModel):
@@ -28,6 +31,11 @@ class DeviceResponse(BaseModel):
     last_seen_at: datetime
     last_activity_at: datetime
     last_pressure_value: float | None
+    last_pir_motion: bool
+    last_pressure_detected: bool
+    battery_level: int | None
+    wifi_rssi: int | None
+    location: str | None
     created_at: datetime
 
 
@@ -45,6 +53,13 @@ class LogResponse(BaseModel):
     pressure_delta: float | None
     activity_detected: bool
     received_at: datetime
+
+
+class ActivityBucketResponse(BaseModel):
+    started_at: datetime
+    ended_at: datetime
+    total_count: int
+    activity_count: int
 
 
 class AlertResponse(BaseModel):
