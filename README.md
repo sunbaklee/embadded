@@ -412,6 +412,33 @@ curl.exe -X POST http://localhost:8000/api/sensor-data -H "Content-Type: applica
 
 기본 임계값이 100이면 두 번째 요청의 변화량 200이 활동으로 판정됩니다.
 
+## UI 확인용 샘플 데이터 50개
+
+[app/seeds/ui_preview.sql](app/seeds/ui_preview.sql)은 다음 데이터를 만듭니다.
+
+- 자연스러운 이름의 장치 50개
+- 안전 25개, 주의 15개, 위험 10개
+- 온라인/오프라인, 저배터리, Wi-Fi 신호, 설치 위치 조합
+- 최근 24시간 센서 로그 300개
+- 미해결 위험 알림 10개
+
+같은 SQL을 다시 실행하면 해당 샘플 장치만 교체하므로 중복되지 않습니다.
+
+```powershell
+docker compose exec web python -c "import sqlite3; db=sqlite3.connect('/app/data/lonecare.db'); db.executescript(open('/app/app/seeds/ui_preview.sql', encoding='utf-8').read()); db.close()"
+```
+
+적용 후 다음 페이지에서 UI를 확인합니다.
+
+- 대시보드: http://localhost:8000
+- 장치 관리: http://localhost:8000/devices
+
+샘플 데이터만 삭제:
+
+```powershell
+docker compose exec web python -c "import sqlite3; db=sqlite3.connect('/app/data/lonecare.db'); db.executescript(open('/app/app/seeds/ui_preview_cleanup.sql', encoding='utf-8').read()); db.close()"
+```
+
 ## 데이터 보존과 백업
 
 DB는 컨테이너 내부 `/app/data/lonecare.db`에 있고, Compose named volume
