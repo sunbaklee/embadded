@@ -10,6 +10,7 @@ PIR 센서와 압력 센서로 생활 활동을 비접촉 감지하고, 장시�
 - 열린 danger 알림 중복 생성 방지
 - 활동 재감지 시 정상 복구 및 열린 알림 자동 해제
 - 웹 대시보드 5초 자동 갱신
+- 센서 없이 상태를 재현하는 개발용 시뮬레이션
 - Windows Docker Desktop 및 Raspberry Pi ARM64 공통 구성
 - Docker named volume을 사용한 DB 영구 저장
 
@@ -142,6 +143,139 @@ Pi의 IP는 다음 명령으로 확인할 수 있습니다.
 hostname -I
 ```
 
+## 기기 추가 방법
+
+별도의 기기 등록 화면이나 사전 등록 과정은 없습니다. 서버가 처음 보는
+`device_id`의 센서 데이터를 받으면 해당 기기를 자동으로 등록합니다.
+
+### 1. 서버 연결 확인
+
+센서 기기를 연결하기 전에 서버가 실행 중인지 확인합니다.
+
+```powershell
+curl.exe http://localhost:8000/health
+```
+
+다음 응답이 나오면 데이터를 받을 준비가 된 상태입니다.
+
+```json
+{"status":"ok","environment":"development"}
+```
+
+ESP32에서 접속할 때는 `localhost` 대신 서버를 실행 중인 PC 또는 Raspberry
+Pi의 LAN IP를 사용해야 합니다.
+
+### 2. 기기 ID 정하기
+
+각 기기에 서로 다른 `device_id`를 지정합니다. 같은 ID로 들어오는 데이터는
+같은 기기의 기록으로 저장되고, 새로운 ID를 사용하면 새 기기가 등록됩니다.
+
+권장 예:
+
+| 설치 장소 | `device_id` 예 |
+|---|---|
+| 거실 | `room-living-001` |
+| 침실 | `room-bedroom-001` |
+| 현관 | `room-entrance-001` |
+| 테스트 기기 | `demo-room-001` |
+
+ID는 영문 소문자, 숫자, 하이픈 조합을 권장합니다. 설치 후에는 기록이
+분리되지 않도록 같은 기기의 ID를 변경하지 않는 것이 좋습니다.
+
+### 3. 센서 데이터 한 번 보내기
+
+아래 요청에서 `device_id`를 원하는 값으로 바꿔 전송합니다.
+
+```powershell
+curl.exe -X POST http://localhost:8000/api/sensor-data `
+  -H "Content-Type: application/json" `
+  -d '{"device_id":"room-bedroom-001","pir_motion":true,"pressure_detected":false,"pressure_value":0}'
+```
+
+성공하면 HTTP `201 Created`와 함께 다음 형태의 응답을 받습니다.
+
+```json
+{
+  "message": "sensor data stored",
+  "device_id": "room-bedroom-001",
+  "activity_detected": true,
+  "pressure_delta": null,
+  "status": "normal",
+  "received_at": "2026-06-12T00:00:00Z"
+}
+```
+
+이 시점부터 기기가 등록되며 대시보드에 표시됩니다. 등록 결과는 다음
+명령으로도 확인할 수 있습니다.
+
+```powershell
+curl.exe http://localhost:8000/api/devices
+curl.exe http://localhost:8000/api/status
+```
+
+### 4. ESP32 기기 추가
+
+[examples/esp32_sensor.ino](examples/esp32_sensor.ino)를 열고 다음 네 값을
+설치 환경에 맞게 수정합니다.
+
+```cpp
+const char* WIFI_SSID = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* SERVER_URL = "http://192.168.0.10:8000/api/sensor-data";
+const char* DEVICE_ID = "room-bedroom-001";
+```
+
+핀 번호도 실제 배선에 맞게 확인합니다.
+
+```cpp
+const int PIR_PIN = 27;
+const int PRESSURE_PIN = 34;
+```
+
+Arduino IDE에서 업로드한 뒤 Serial Monitor를 `115200 baud`로 열어
+`POST 201` 또는 `POST 200` 계열 응답이 출력되는지 확인합니다. 기기를 한 대
+더 추가하려면 같은 코드를 새 ESP32에 업로드하되 `DEVICE_ID`만 겹치지 않게
+변경합니다.
+
+### 5. 센서 없이 테스트 기기 추가
+
+Windows 개발 실행에서는 대시보드 상단에 **상태 시뮬레이션** 패널이
+표시됩니다.
+
+1. `http://localhost:8000`에 접속합니다.
+2. `demo-`로 시작하는 테스트 장치 이름을 입력합니다.
+3. **안전 상태**, **주의 상태**, **위험 상태** 중 하나를 누릅니다.
+4. 장치 카드와 위험 알림이 즉시 바뀌는지 확인합니다.
+5. 테스트가 끝나면 **현재 장치 초기화**를 누릅니다.
+
+테스트 장치 ID는 `demo-room-001`처럼 `demo-`로 시작해야 합니다. 이 기능은
+기본적으로 `APP_ENV=development`일 때만 활성화되고 운영 환경에서는
+숨겨집니다. 환경과 관계없이 명시적으로 제어하려면 다음 설정을 사용할 수
+있습니다.
+
+```dotenv
+SIMULATION_ENABLED=true
+```
+
+운영 서버에서는 테스트 API가 노출되지 않도록 `SIMULATION_ENABLED=false`를
+권장합니다.
+
+### 기기가 나타나지 않을 때
+
+다음 순서로 확인합니다.
+
+1. 서버의 `/health` 요청이 성공하는지 확인합니다.
+2. ESP32와 서버가 같은 네트워크에 있는지 확인합니다.
+3. `SERVER_URL`에 `localhost`가 아닌 서버의 LAN IP가 들어 있는지 확인합니다.
+4. ESP32 Serial Monitor에서 HTTP 응답 코드와 오류 메시지를 확인합니다.
+5. Windows 방화벽에서 TCP 8000번 인바운드 연결을 허용합니다.
+6. `curl.exe http://localhost:8000/api/logs?limit=20`으로 수신 기록을 확인합니다.
+7. 컨테이너 로그를 확인합니다.
+
+```powershell
+docker compose logs --tail 100 web
+```
+
 ## API
 
 | Method | 경로 | 설명 |
@@ -152,6 +286,9 @@ hostname -I
 | GET | `/api/logs` | 최근 센서 로그 |
 | GET | `/api/alerts` | 알림 목록 |
 | POST | `/api/alerts/{alert_id}/resolve` | 알림 수동 해제 |
+| GET | `/api/simulation` | 시뮬레이션 활성화 여부 확인 |
+| POST | `/api/simulation/scenario` | 테스트 장치 상태 변경 |
+| DELETE | `/api/simulation/devices/{device_id}` | 테스트 장치 초기화 |
 
 `/api/logs?device_id=room_001&limit=20`처럼 장치와 개수를 지정할 수 있습니다.
 `/api/alerts?resolved=false`로 미해제 알림만 조회할 수 있습니다.

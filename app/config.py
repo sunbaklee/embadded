@@ -11,6 +11,10 @@ load_dotenv(BASE_DIR / ".env")
 class Settings:
     app_name = os.getenv("APP_NAME", "IoT LoneCare")
     app_env = os.getenv("APP_ENV", "production")
+    simulation_enabled = os.getenv(
+        "SIMULATION_ENABLED",
+        "true" if app_env == "development" else "false",
+    ).lower() in {"1", "true", "yes", "on"}
     database_url = os.getenv(
         "DATABASE_URL", f"sqlite:///{BASE_DIR / 'data' / 'lonecare.db'}"
     )

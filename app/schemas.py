@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -55,3 +56,21 @@ class AlertResponse(BaseModel):
     created_at: datetime
     resolved_at: datetime | None
     resolved_reason: str | None
+
+
+class SimulationCreate(BaseModel):
+    device_id: str = Field(
+        default="demo-room-001",
+        min_length=6,
+        max_length=100,
+        pattern=r"^demo-[A-Za-z0-9_-]+$",
+    )
+    scenario: Literal["normal", "warning", "danger"]
+
+
+class SimulationResponse(BaseModel):
+    message: str
+    device_id: str
+    scenario: str
+    status: str
+    inactive_seconds: int

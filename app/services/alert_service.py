@@ -18,13 +18,15 @@ def create_danger_alert_if_needed(db: Session, device: Device) -> Alert | None:
     alert = Alert(
         device_id=device.id,
         level="danger",
-        message=f"{device.device_id}: 무활동 위험 기준 시간을 초과했습니다.",
+        message=f"{device.device_id}: 움직임이 없어 위험 기준 시간을 초과했습니다.",
     )
     db.add(alert)
     return alert
 
 
-def resolve_open_alerts_for_activity(db: Session, device: Device) -> None:
+def resolve_open_alerts(
+    db: Session, device: Device, reason: str = "activity_detected"
+) -> None:
     alerts = db.scalars(
         select(Alert).where(
             Alert.device_id == device.id,
@@ -35,4 +37,8 @@ def resolve_open_alerts_for_activity(db: Session, device: Device) -> None:
     for alert in alerts:
         alert.is_resolved = True
         alert.resolved_at = now
-        alert.resolved_reason = "activity_detected"
+        alert.resolved_reason = reason
+
+
+def resolve_open_alerts_for_activity(db: Session, device: Device) -> None:
+    resolve_open_alerts(db, device)

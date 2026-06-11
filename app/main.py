@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import alerts, sensor, status
+from app.routers import alerts, sensor, simulation, status
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -23,6 +23,7 @@ app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
 app.include_router(sensor.router)
 app.include_router(status.router)
 app.include_router(alerts.router)
+app.include_router(simulation.router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
