@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IoT LoneCare Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">NON-CONTACT SAFETY MONITORING</p>
+      <h1>IoT LoneCare</h1>
+      <p class="subtitle">비접촉식 생활 활동 모니터링 대시보드</p>
+    </div>
+    <div class="connection">
+      <span id="connection-dot"></span>
+      <span id="connection-text">서버 확인 중</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary" aria-label="상태 요약">
+      <article><span>등록 장치</span><strong id="device-count">0</strong></article>
+      <article><span>정상</span><strong id="normal-count">0</strong></article>
+      <article><span>주의</span><strong id="warning-count">0</strong></article>
+      <article><span>위험</span><strong id="danger-count">0</strong></article>
+    </section>
+
+    <section>
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">LIVE STATUS</p>
+          <h2>장치 상태</h2>
+        </div>
+        <span id="updated-at">갱신 대기 중</span>
+      </div>
+      <div id="device-grid" class="device-grid">
+        <p class="empty">아직 등록된 장치가 없습니다.</p>
+      </div>
+    </section>
+
+    <section class="two-column">
+      <div>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">ALERTS</p>
+            <h2>위험 알림</h2>
+          </div>
+        </div>
+        <div id="alert-list" class="panel-list">
+          <p class="empty">알림이 없습니다.</p>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">RECENT DATA</p>
+            <h2>최근 센서 기록</h2>
+          </div>
+        </div>
+        <div id="log-list" class="panel-list">
+          <p class="empty">센서 기록이 없습니다.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>
