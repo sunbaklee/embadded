@@ -37,7 +37,7 @@ PIR 센서와 압력 센서로 생활 활동을 비접촉 감지하고, 장시�
 ```text
 iot-lonecare/
 ├─ app/
-│  ├─ routers/          # 센서, 상태, 알림 API
+│  ├─ routers/          # 센서, 상태, 알림, 시뮬레이션 API
 │  ├─ services/         # 상태 판정 및 알림 서비스
 │  ├─ static/           # HTML/CSS/JavaScript 대시보드
 │  ├─ config.py
