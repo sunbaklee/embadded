@@ -93,7 +93,15 @@ function renderStatus(devices) {
     return;
   }
 
-  grid.innerHTML = devices.map((device) => {
+  const priority = { danger: 0, warning: 1, normal: 2 };
+  const visibleDevices = [...devices]
+    .sort((a, b) => (
+      priority[a.status] - priority[b.status]
+      || b.inactive_seconds - a.inactive_seconds
+    ))
+    .slice(0, 6);
+
+  grid.innerHTML = visibleDevices.map((device) => {
     const progress = Math.min(
       100,
       Math.round((device.inactive_seconds / device.threshold_seconds) * 100),

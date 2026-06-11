@@ -15,11 +15,14 @@
         <h1>IoT LoneCare</h1>
         <p class="subtitle">움직임을 살피고, 도움이 필요한 순간을 빠르게 알려드립니다.</p>
       </div>
-      <div class="connection" role="status" aria-live="polite">
-        <span id="connection-dot" aria-hidden="true"></span>
-        <div>
-          <strong id="connection-text">서버 연결 확인 중</strong>
-          <span id="updated-at">잠시만 기다려 주세요</span>
+      <div class="hero-actions">
+        <a class="hero-device-link" href="/devices">장치 관리</a>
+        <div class="connection" role="status" aria-live="polite">
+          <span id="connection-dot" aria-hidden="true"></span>
+          <div>
+            <strong id="connection-text">서버 연결 확인 중</strong>
+            <span id="updated-at">잠시만 기다려 주세요</span>
+          </div>
         </div>
       </div>
     </div>
@@ -148,9 +151,12 @@
       <div class="section-title">
         <div>
           <p class="eyebrow">실시간 현황</p>
-          <h2 id="devices-title">장치별 안전 상태</h2>
+          <h2 id="devices-title">우선 확인 장치</h2>
         </div>
-        <span class="refresh-note">5초마다 자동 갱신</span>
+        <div class="section-actions">
+          <span class="refresh-note">위험·주의 우선 최대 6개</span>
+          <a class="text-link" href="/devices">전체 장치 관리</a>
+        </div>
       </div>
       <div id="device-grid" class="device-grid">
         <div class="empty-state">

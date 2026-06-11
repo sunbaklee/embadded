@@ -12,6 +12,7 @@ PIR 센서와 압력 센서로 생활 활동을 비접촉 감지하고, 장시�
 - 웹 대시보드 5초 자동 갱신
 - 최근 1시간/6시간/24시간 활동 감지 그래프
 - 장치별 온라인 상태, 배터리, Wi-Fi 신호, 설치 위치 표시
+- 상태·연결·위치·센서 조건별 장치 관리 페이지
 - 센서 없이 상태를 재현하는 개발용 시뮬레이션
 - Windows Docker Desktop 및 Raspberry Pi ARM64 공통 구성
 - Docker named volume을 사용한 DB 영구 저장
@@ -88,6 +89,7 @@ Windows에서는 Compose가 `docker-compose.override.yml`을 자동으로 함께
 활성화되므로 Python/HTML/CSS/JavaScript 수정 사항이 바로 반영됩니다.
 
 - 대시보드: http://localhost:8000
+- 장치 관리: http://localhost:8000/devices
 - Swagger API 문서: http://localhost:8000/docs
 - 상태 확인: http://localhost:8000/health
 

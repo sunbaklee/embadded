@@ -33,6 +33,11 @@ def dashboard():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/devices", include_in_schema=False)
+def device_management():
+    return FileResponse(STATIC_DIR / "devices.html")
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "environment": settings.app_env}

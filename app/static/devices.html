@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123c34">
+  <title>장치 관리 | IoT LoneCare</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/devices.css">
+</head>
+<body class="devices-page">
+  <header class="management-header">
+    <div class="management-header-inner">
+      <div>
+        <a class="back-link" href="/">← 대시보드</a>
+        <p class="eyebrow">DEVICE MANAGEMENT</p>
+        <h1>장치 안전 상태 관리</h1>
+        <p class="subtitle">조건별로 장치를 찾고, 확인이 필요한 대상을 빠르게 분류합니다.</p>
+      </div>
+      <div class="connection management-connection" role="status" aria-live="polite">
+        <span id="connection-dot"></span>
+        <div>
+          <strong id="connection-text">서버 연결 확인 중</strong>
+          <span id="updated-at">잠시만 기다려 주세요</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="management-main">
+    <section class="management-summary" aria-label="장치 상태 요약">
+      <button class="management-stat active" type="button" data-quick-status="all">
+        <span>전체 장치</span><strong id="total-count">0</strong>
+      </button>
+      <button class="management-stat normal" type="button" data-quick-status="normal">
+        <span>안전</span><strong id="safe-count">0</strong>
+      </button>
+      <button class="management-stat warning" type="button" data-quick-status="warning">
+        <span>주의</span><strong id="caution-count">0</strong>
+      </button>
+      <button class="management-stat danger" type="button" data-quick-status="danger">
+        <span>위험</span><strong id="risk-count">0</strong>
+      </button>
+      <button class="management-stat offline" type="button" data-quick-connection="offline">
+        <span>오프라인</span><strong id="offline-count">0</strong>
+      </button>
+    </section>
+
+    <section class="filter-panel" aria-labelledby="filter-title">
+      <div class="filter-heading">
+        <div>
+          <p class="eyebrow">FILTER</p>
+          <h2 id="filter-title">장치 조회 조건</h2>
+        </div>
+        <button id="reset-filters" class="reset-button" type="button">조건 초기화</button>
+      </div>
+      <div class="filter-grid">
+        <label class="search-field">
+          <span>장치명 또는 위치 검색</span>
+          <input id="search-filter" type="search" placeholder="예: bedroom, 침실, room-001">
+        </label>
+        <label>
+          <span>안전 상태</span>
+          <select id="status-filter">
+            <option value="all">전체 상태</option>
+            <option value="danger">위험만</option>
+            <option value="warning">주의만</option>
+            <option value="normal">안전만</option>
+          </select>
+        </label>
+        <label>
+          <span>연결 상태</span>
+          <select id="connection-filter">
+            <option value="all">전체 연결</option>
+            <option value="online">온라인</option>
+            <option value="offline">오프라인</option>
+          </select>
+        </label>
+        <label>
+          <span>설치 위치</span>
+          <select id="location-filter">
+            <option value="all">전체 위치</option>
+          </select>
+        </label>
+        <label>
+          <span>특정 조건</span>
+          <select id="condition-filter">
+            <option value="all">조건 없음</option>
+            <option value="pressure">압력 감지 + 움직임 없음</option>
+            <option value="low-battery">저배터리 20% 이하</option>
+            <option value="no-battery">배터리 정보 없음</option>
+            <option value="needs-attention">주의·위험·오프라인</option>
+          </select>
+        </label>
+        <label>
+          <span>정렬</span>
+          <select id="sort-filter">
+            <option value="priority">위험 우선</option>
+            <option value="recent">최근 수신 순</option>
+            <option value="inactive">무활동 긴 순</option>
+            <option value="name">장치명 순</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="device-results" aria-labelledby="result-title">
+      <div class="result-heading">
+        <div>
+          <p class="eyebrow">RESULT</p>
+          <h2 id="result-title">조회 결과 <span id="result-count">0</span>대</h2>
+        </div>
+        <span class="refresh-note">5초마다 자동 갱신</span>
+      </div>
+      <div class="device-table-wrap">
+        <table class="device-table">
+          <thead>
+            <tr>
+              <th>장치</th>
+              <th>안전 상태</th>
+              <th>연결</th>
+              <th>마지막 수신</th>
+              <th>무활동</th>
+              <th>배터리</th>
+              <th>Wi-Fi</th>
+              <th>센서 조건</th>
+            </tr>
+          </thead>
+          <tbody id="device-table-body"></tbody>
+        </table>
+        <div id="device-card-list" class="management-card-list"></div>
+        <div id="no-results" class="empty-state" hidden>
+          <strong>조건에 맞는 장치가 없습니다</strong>
+          <p>조회 조건을 변경하거나 초기화해 주세요.</p>
+        </div>
+      </div>
+      <nav id="pagination" class="pagination" aria-label="장치 목록 페이지"></nav>
+    </section>
+  </main>
+
+  <script src="/static/devices.js"></script>
+</body>
+</html>
