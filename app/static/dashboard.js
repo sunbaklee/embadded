@@ -116,7 +116,7 @@ function renderAlerts(alerts) {
         <p>${escapeHtml(alert.message)}</p>
         <time>${formatDate(alert.created_at)}</time>
       </div>
-      ${alert.is_resolved ? "" : `<button class="button small resolve-alert" type="button" data-alert-id="${alert.id}">해결 처리</button>`}
+      ${alert.is_resolved ? "" : `<button class="button small resolve-alert" type="button" data-alert-id="${alert.id}">안전 확인 완료</button>`}
     </article>
   `).join("");
 }
@@ -155,7 +155,7 @@ function showToast(message, type = "success") {
 
 async function resolveAlert(id) {
   await getJson(`/api/alerts/${id}/resolve`, { method: "POST" });
-  showToast("알림을 해결 처리했습니다.");
+  showToast("안전 확인을 완료하고 장치 상태를 안전으로 변경했습니다.");
   await refresh();
 }
 

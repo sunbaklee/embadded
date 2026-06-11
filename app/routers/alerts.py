@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Alert, Device, utc_now
 from app.schemas import AlertResponse
+from app.services.alert_service import resolve_open_alerts
 
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
@@ -43,17 +44,18 @@ def get_alerts(
 @router.post("/{alert_id}/resolve", response_model=AlertResponse)
 def resolve_alert(alert_id: int, db: Session = Depends(get_db)):
     row = db.execute(
-        select(Alert, Device.device_id)
+        select(Alert, Device)
         .join(Device)
         .where(Alert.id == alert_id)
     ).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Alert not found")
 
-    alert, device_id = row
+    alert, device = row
     if not alert.is_resolved:
-        alert.is_resolved = True
-        alert.resolved_at = utc_now()
-        alert.resolved_reason = "manual"
+        now = utc_now()
+        resolve_open_alerts(db, device, reason="manual_safety_confirmed")
+        device.last_activity_at = now
+        device.status = "normal"
         db.commit()
-    return to_response(alert, device_id)
+    return to_response(alert, device.device_id)

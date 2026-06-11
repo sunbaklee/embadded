@@ -285,7 +285,7 @@ docker compose logs --tail 100 web
 | GET | `/api/devices` | 등록 장치 목록 |
 | GET | `/api/logs` | 최근 센서 로그 |
 | GET | `/api/alerts` | 알림 목록 |
-| POST | `/api/alerts/{alert_id}/resolve` | 알림 수동 해제 |
+| POST | `/api/alerts/{alert_id}/resolve` | 안전 확인 완료 및 장치 상태 정상 복구 |
 | GET | `/api/simulation` | 시뮬레이션 활성화 여부 확인 |
 | POST | `/api/simulation/scenario` | 테스트 장치 상태 변경 |
 | DELETE | `/api/simulation/devices/{device_id}` | 테스트 장치 초기화 |
