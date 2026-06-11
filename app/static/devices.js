@@ -70,7 +70,10 @@ function sensorCondition(device) {
 
 async function getJson(url) {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail || `${url}: ${response.status}`);
+  }
   return response.json();
 }
 
@@ -186,6 +189,7 @@ function rowMarkup(device) {
       <td>${device.battery_level != null ? `${device.battery_level}%` : "정보 없음"}</td>
       <td title="${device.wifi_rssi != null ? `${device.wifi_rssi} dBm` : ""}">${wifiLabel(device.wifi_rssi)}</td>
       <td><span class="sensor-condition ${condition.className}">${condition.label}</span></td>
+      <td>${device.status === "danger" ? `<button class="confirm-safety-button" type="button" data-confirm-device="${escapeHtml(device.device_id)}">안전 확인 완료</button>` : ""}</td>
     </tr>`;
 }
 
@@ -211,7 +215,28 @@ function cardMarkup(device) {
         <div><dt>배터리</dt><dd>${device.battery_level != null ? `${device.battery_level}%` : "정보 없음"}</dd></div>
         <div><dt>Wi-Fi</dt><dd>${wifiLabel(device.wifi_rssi)}</dd></div>
       </dl>
+      ${device.status === "danger" ? `<button class="confirm-safety-button mobile" type="button" data-confirm-device="${escapeHtml(device.device_id)}">안전 확인 완료</button>` : ""}
     </article>`;
+}
+
+async function confirmSafety(deviceId, button) {
+  button.disabled = true;
+  button.textContent = "처리 중...";
+  try {
+    const response = await fetch(
+      `/api/alerts/device/${encodeURIComponent(deviceId)}/resolve`,
+      { method: "POST" },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail || `처리에 실패했습니다 (${response.status})`);
+    }
+    await refresh();
+  } catch (error) {
+    alert(error.message);
+    button.disabled = false;
+    button.textContent = "안전 확인 완료";
+  }
 }
 
 function renderPagination(total) {
@@ -339,6 +364,12 @@ document.querySelector("#pagination").addEventListener("click", (event) => {
   currentPage = Number(button.dataset.page);
   render();
   document.querySelector(".device-results").scrollIntoView({ behavior: "smooth" });
+});
+
+document.querySelector(".device-table-wrap").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-confirm-device]");
+  if (!button) return;
+  confirmSafety(button.dataset.confirmDevice, button);
 });
 
 restoreFilters();

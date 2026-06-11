@@ -59,3 +59,24 @@ def resolve_alert(alert_id: int, db: Session = Depends(get_db)):
         device.status = "normal"
         db.commit()
     return to_response(alert, device.device_id)
+
+
+@router.post("/device/{device_id}/resolve")
+def resolve_device_alerts(device_id: str, db: Session = Depends(get_db)):
+    device = db.scalar(select(Device).where(Device.device_id == device_id))
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    if device.status != "danger":
+        raise HTTPException(status_code=409, detail="Device is not in danger status")
+
+    now = utc_now()
+    resolve_open_alerts(db, device, reason="manual_safety_confirmed")
+    device.last_activity_at = now
+    device.status = "normal"
+    db.commit()
+    return {
+        "message": "device safety confirmed",
+        "device_id": device.device_id,
+        "status": device.status,
+        "confirmed_at": now,
+    }

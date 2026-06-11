@@ -315,6 +315,7 @@ docker compose logs --tail 100 web
 | GET | `/api/activity?hours=6` | 시간 구간별 센서 수신/활동 집계 |
 | GET | `/api/alerts` | 알림 목록 |
 | POST | `/api/alerts/{alert_id}/resolve` | 안전 확인 완료 및 장치 상태 정상 복구 |
+| POST | `/api/alerts/device/{device_id}/resolve` | 위험 장치의 안전 확인 완료 |
 | GET | `/api/simulation` | 시뮬레이션 활성화 여부 확인 |
 | POST | `/api/simulation/scenario` | 테스트 장치 상태 변경 |
 | DELETE | `/api/simulation/devices/{device_id}` | 테스트 장치 초기화 |
