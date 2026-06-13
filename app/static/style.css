@@ -445,7 +445,7 @@ input:focus { border-color: var(--normal); box-shadow: 0 0 0 3px rgba(21, 128, 9
 .status-badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--status-color); }
 .status-description { margin-top: 14px; color: var(--muted); font-size: 0.82rem; }
 .device-health { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
-.connection-state, .confirmation-state {
+.connection-state, .confirmation-state, .bed-state {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -459,6 +459,8 @@ input:focus { border-color: var(--normal); box-shadow: 0 0 0 3px rgba(21, 128, 9
 .connection-state.offline { color: var(--danger); background: var(--danger-soft); }
 .connection-state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .confirmation-state { color: var(--warning); background: var(--warning-soft); }
+.bed-state.in-use { color: var(--normal); background: var(--normal-soft); }
+.bed-state.empty { color: var(--muted); background: #edf1ef; }
 .inactivity { margin-top: 20px; padding: 13px; border-radius: 11px; background: var(--surface-soft); }
 .inactivity > div:first-child { display: flex; justify-content: space-between; font-size: 0.78rem; }
 .inactivity strong { color: var(--status-color); }

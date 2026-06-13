@@ -115,7 +115,7 @@ function renderStatus(devices) {
       Math.floor((Date.now() - parseDate(device.last_seen_at).getTime()) / 1000),
     );
     const isOnline = lastSeenSeconds <= monitoringConfig.sensor_offline_seconds;
-    const needsConfirmation = device.last_pressure_detected && !device.last_pir_motion;
+    const bedInUse = device.last_pressure_detected;
     return `
       <article class="device-card ${device.status}">
         <div class="device-head">
@@ -130,7 +130,7 @@ function renderStatus(devices) {
           <span class="connection-state ${isOnline ? "online" : "offline"}">
             <i></i>${isOnline ? "온라인" : "오프라인"}
           </span>
-          ${needsConfirmation ? '<span class="confirmation-state">압력 유지 · 움직임 없음</span>' : ""}
+          <span class="bed-state ${bedInUse ? "in-use" : "empty"}">${bedInUse ? "침대 사용 중" : "침대 비어 있음"}</span>
         </div>
         <div class="inactivity">
           <div>
@@ -147,7 +147,7 @@ function renderStatus(devices) {
           <div><dt>배터리</dt><dd>${device.battery_level != null ? `${device.battery_level}%` : "정보 없음"}</dd></div>
           <div><dt>Wi-Fi 신호</dt><dd>${wifiLabel(device.wifi_rssi)}</dd></div>
           <div><dt>설치 위치</dt><dd>${escapeHtml(device.location || "미설정")}</dd></div>
-          <div><dt>압력 센서</dt><dd>${device.last_pressure_detected ? `감지 (${device.last_pressure_value ?? "-"})` : "미감지"}</dd></div>
+          <div><dt>침대 사용</dt><dd>${device.last_pressure_detected ? "사용 중" : "비어 있음"}</dd></div>
         </dl>
       </article>`;
   }).join("");
@@ -180,7 +180,7 @@ function renderReceiveLog(logs) {
       <strong>${responseStatus}</strong>
     </div>
     <div class="payload-log">
-      PIR=${latest.pir_motion ? "1" : "0"} · PRESSURE=${latest.pressure_value} · ACTIVITY=${latest.activity_detected ? "1" : "0"}
+      PIR=${latest.pir_motion ? "1" : "0"} · BED=${latest.pressure_detected ? "1" : "0"} · ACTIVITY=${latest.activity_detected ? "1" : "0"}
     </div>`;
 }
 
@@ -195,10 +195,10 @@ function renderCriteria() {
       <strong>${formatDuration(monitoringConfig.danger_seconds)} 동안 움직임 미감지</strong>
     </div>
     <div class="criterion check">
-      <span>확인</span>
-      <strong>압력 감지 유지 + 움직임 없음</strong>
+      <span>참고</span>
+      <strong>침대 사용 여부는 부가 정보로 표시됩니다</strong>
     </div>
-    <p class="criteria-note">압력 변화량 ${monitoringConfig.pressure_delta_threshold} 이상은 활동으로 판정합니다.</p>`;
+    <p class="criteria-note">움직임(PIR) 감지가 활동 판정 기준입니다.</p>`;
 }
 
 function renderActivityChart(buckets) {

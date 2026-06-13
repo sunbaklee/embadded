@@ -116,8 +116,8 @@ def safety_reasons(db: Session, device: Device) -> list[SafetyReasonResponse]:
         reasons.append(
             SafetyReasonResponse(
                 code="pressure_without_motion",
-                title="압력은 유지되지만 움직임이 없음",
-                detail="압력 센서는 감지 상태였지만 PIR 움직임은 감지되지 않았습니다.",
+                title="침대 사용 중이지만 움직임이 없음",
+                detail="침대 사용이 감지된 상태였지만 PIR 움직임은 감지되지 않았습니다.",
                 level="warning",
             )
         )

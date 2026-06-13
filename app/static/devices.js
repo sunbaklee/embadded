@@ -90,13 +90,17 @@ function isOnline(device) {
 }
 
 function sensorCondition(device) {
-  if (device.last_pressure_detected && !device.last_pir_motion) {
-    return { className: "warning", label: "압력 유지 · 움직임 없음" };
-  }
   if (device.last_pir_motion) {
     return { className: "normal", label: "움직임 감지" };
   }
-  return { className: "muted", label: "변화 없음" };
+  return { className: "muted", label: "움직임 없음" };
+}
+
+// avoid 모듈 신호(last_pressure_detected)를 침대 사용 여부로 표시하는 부가 배지
+function bedUsage(device) {
+  return device.last_pressure_detected
+    ? { className: "normal", label: "침대 사용 중" }
+    : { className: "muted", label: "침대 비어 있음" };
 }
 
 async function getJson(url, options) {
@@ -297,6 +301,7 @@ function filteredDevices() {
 function rowMarkup(device) {
   const online = isOnline(device);
   const condition = sensorCondition(device);
+  const bed = bedUsage(device);
   const alert = allAlerts.find((item) => item.device_id === device.device_id);
   return `
     <tr
@@ -315,7 +320,10 @@ function rowMarkup(device) {
       <td>${duration(device.inactive_seconds)}</td>
       <td>${device.battery_level != null ? `${device.battery_level}%` : "정보 없음"}</td>
       <td title="${device.wifi_rssi != null ? `${device.wifi_rssi} dBm` : ""}">${wifiLabel(device.wifi_rssi)}</td>
-      <td><span class="sensor-condition ${condition.className}">${condition.label}</span></td>
+      <td>
+        <span class="sensor-condition ${condition.className}">${condition.label}</span>
+        <span class="sensor-condition ${bed.className}">${bed.label}</span>
+      </td>
       <td>
         <div class="device-action-group">
           ${alert ? `<button class="device-action-button workflow" type="button" data-workflow-alert="${alert.id}">대응 단계</button>` : ""}
@@ -328,6 +336,7 @@ function rowMarkup(device) {
 function cardMarkup(device) {
   const online = isOnline(device);
   const condition = sensorCondition(device);
+  const bed = bedUsage(device);
   const alert = allAlerts.find((item) => item.device_id === device.device_id);
   return `
     <article
@@ -347,6 +356,7 @@ function cardMarkup(device) {
       <div class="management-card-badges">
         <span class="management-badge ${online ? "online" : "offline"}">${online ? "온라인" : "오프라인"}</span>
         <span class="sensor-condition ${condition.className}">${condition.label}</span>
+        <span class="sensor-condition ${bed.className}">${bed.label}</span>
       </div>
       <dl>
         <div><dt>마지막 수신</dt><dd>${relativeTime(device.last_seen_at)}</dd></div>

@@ -6,9 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class SensorDataCreate(BaseModel):
     device_id: str = Field(min_length=1, max_length=100)
-    pir_motion: bool
-    pressure_detected: bool
-    pressure_value: float
+    # 부분 업데이트 지원: 보드별로 자기 센서 값만 전송할 수 있도록 모두 선택값.
+    # 예) PIR 보드는 pir_motion만, 압력 보드는 pressure_detected/pressure_value만 전송.
+    pir_motion: bool | None = None
+    pressure_detected: bool | None = None
+    pressure_value: float | None = None
     battery_level: int | None = Field(default=None, ge=0, le=100)
     wifi_rssi: int | None = Field(default=None, ge=-120, le=0)
     location: str | None = Field(default=None, min_length=1, max_length=100)

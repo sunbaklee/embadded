@@ -30,20 +30,25 @@ def receive_sensor_data(payload: SensorDataCreate, db: Session = Depends(get_db)
         db.add(device)
         db.flush()
 
-    pressure_delta = (
-        abs(payload.pressure_value - device.last_pressure_value)
-        if device.last_pressure_value is not None
-        else None
-    )
-    activity_detected = payload.pir_motion or (
-        pressure_delta is not None
-        and pressure_delta >= settings.pressure_delta_threshold
-    )
+    # 압력 변화량은 이번 패킷이 압력 값을 보냈을 때만 계산한다.
+    pressure_delta = None
+    pressure_activity = False
+    if payload.pressure_value is not None:
+        if device.last_pressure_value is not None:
+            pressure_delta = abs(payload.pressure_value - device.last_pressure_value)
+            pressure_activity = pressure_delta >= settings.pressure_delta_threshold
+        device.last_pressure_value = payload.pressure_value
+
+    # PIR 활동은 이번 패킷이 움직임을 보고했을 때만 인정한다.
+    # (직전 상태로 활동을 재판정하면 압력 패킷마다 가짜 활동이 생긴다.)
+    activity_detected = bool(payload.pir_motion) or pressure_activity
 
     device.last_seen_at = now
-    device.last_pressure_value = payload.pressure_value
-    device.last_pir_motion = payload.pir_motion
-    device.last_pressure_detected = payload.pressure_detected
+    # 부분 업데이트: 보낸 필드만 갱신해 보드끼리 서로의 값을 덮어쓰지 않게 한다.
+    if payload.pir_motion is not None:
+        device.last_pir_motion = payload.pir_motion
+    if payload.pressure_detected is not None:
+        device.last_pressure_detected = payload.pressure_detected
     if payload.battery_level is not None:
         device.battery_level = payload.battery_level
     if payload.wifi_rssi is not None:
@@ -57,11 +62,12 @@ def receive_sensor_data(payload: SensorDataCreate, db: Session = Depends(get_db)
     else:
         refresh_device_status(db, device, now)
 
+    # 이번 패킷이 보내지 않은 센서 값은 장치의 현재 상태로 채워 스냅샷을 남긴다.
     log = SensorLog(
         device_id=device.id,
-        pir_motion=payload.pir_motion,
-        pressure_detected=payload.pressure_detected,
-        pressure_value=payload.pressure_value,
+        pir_motion=device.last_pir_motion,
+        pressure_detected=device.last_pressure_detected,
+        pressure_value=device.last_pressure_value or 0.0,
         pressure_delta=pressure_delta,
         activity_detected=activity_detected,
         received_at=now,
