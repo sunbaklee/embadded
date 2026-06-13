@@ -131,6 +131,11 @@ INSERT INTO devices (
     last_activity_at,
     last_pressure_value,
     last_pir_motion,
+    last_radar_online,
+    last_presence_detected,
+    last_moving_detected,
+    last_stationary_detected,
+    last_radar_distance_cm,
     last_pressure_detected,
     battery_level,
     wifi_rssi,
@@ -156,6 +161,18 @@ SELECT
     last_activity_at,
     pressure_value,
     pir_motion,
+    CASE WHEN seq % 13 = 0 THEN 0 ELSE 1 END,
+    CASE
+        WHEN seq % 13 = 0 THEN NULL
+        WHEN seq % 4 IN (0, 1) THEN 1
+        ELSE 0
+    END,
+    CASE WHEN seq % 13 != 0 AND pir_motion = 1 THEN 1 ELSE 0 END,
+    CASE
+        WHEN seq % 13 != 0 AND pir_motion = 0 AND seq % 4 IN (0, 1) THEN 1
+        ELSE 0
+    END,
+    CASE WHEN seq % 13 = 0 THEN NULL ELSE 80 + (seq * 17) % 320 END,
     pressure_detected,
     battery_level,
     wifi_rssi,
@@ -187,6 +204,16 @@ WITH log_offsets(log_order, minutes_ago) AS (
 INSERT INTO sensor_logs (
     device_id,
     pir_motion,
+    radar_online,
+    presence_detected,
+    moving_detected,
+    stationary_detected,
+    radar_distance_cm,
+    moving_distance_cm,
+    stationary_distance_cm,
+    moving_signal,
+    stationary_signal,
+    radar_state,
     pressure_detected,
     pressure_value,
     pressure_delta,
@@ -196,6 +223,31 @@ INSERT INTO sensor_logs (
 SELECT
     device.id,
     CASE WHEN (seed.seq + offsets.log_order) % 4 = 0 THEN 1 ELSE 0 END,
+    CASE WHEN seed.seq % 13 = 0 THEN 0 ELSE 1 END,
+    CASE
+        WHEN seed.seq % 13 = 0 THEN NULL
+        WHEN (seed.seq + offsets.log_order) % 4 IN (0, 1) THEN 1
+        ELSE 0
+    END,
+    CASE
+        WHEN seed.seq % 13 != 0 AND (seed.seq + offsets.log_order) % 4 = 0 THEN 1
+        ELSE 0
+    END,
+    CASE
+        WHEN seed.seq % 13 != 0 AND (seed.seq + offsets.log_order) % 4 = 1 THEN 1
+        ELSE 0
+    END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 80 + (seed.seq * 17) % 320 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 60 + (seed.seq * 11) % 240 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 70 + (seed.seq * 13) % 260 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 35 + (seed.seq * 7) % 65 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 30 + (seed.seq * 5) % 60 END,
+    CASE
+        WHEN seed.seq % 13 = 0 THEN 'offline'
+        WHEN (seed.seq + offsets.log_order) % 4 = 0 THEN 'moving'
+        WHEN (seed.seq + offsets.log_order) % 4 = 1 THEN 'stationary'
+        ELSE 'none'
+    END,
     CASE WHEN (seed.seq + offsets.log_order) % 3 = 0 THEN 1 ELSE 0 END,
     seed.pressure_value + offsets.log_order * 9,
     CASE
@@ -222,6 +274,16 @@ WITH day_offsets(day_order) AS (
 INSERT INTO sensor_logs (
     device_id,
     pir_motion,
+    radar_online,
+    presence_detected,
+    moving_detected,
+    stationary_detected,
+    radar_distance_cm,
+    moving_distance_cm,
+    stationary_distance_cm,
+    moving_signal,
+    stationary_signal,
+    radar_state,
     pressure_detected,
     pressure_value,
     pressure_delta,
@@ -231,6 +293,31 @@ INSERT INTO sensor_logs (
 SELECT
     device.id,
     CASE WHEN (seed.seq + days.day_order) % 3 = 0 THEN 1 ELSE 0 END,
+    CASE WHEN seed.seq % 13 = 0 THEN 0 ELSE 1 END,
+    CASE
+        WHEN seed.seq % 13 = 0 THEN NULL
+        WHEN (seed.seq + days.day_order) % 3 = 0 THEN 1
+        ELSE 0
+    END,
+    CASE
+        WHEN seed.seq % 13 != 0 AND (seed.seq + days.day_order) % 3 = 0 THEN 1
+        ELSE 0
+    END,
+    CASE
+        WHEN seed.seq % 13 != 0 AND (seed.seq + days.day_order) % 3 = 1 THEN 1
+        ELSE 0
+    END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 80 + (seed.seq * 17) % 320 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 60 + (seed.seq * 11) % 240 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 70 + (seed.seq * 13) % 260 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 35 + (seed.seq * 7) % 65 END,
+    CASE WHEN seed.seq % 13 = 0 THEN NULL ELSE 30 + (seed.seq * 5) % 60 END,
+    CASE
+        WHEN seed.seq % 13 = 0 THEN 'offline'
+        WHEN (seed.seq + days.day_order) % 3 = 0 THEN 'moving'
+        WHEN (seed.seq + days.day_order) % 3 = 1 THEN 'stationary'
+        ELSE 'none'
+    END,
     CASE WHEN (seed.seq + days.day_order) % 4 = 0 THEN 1 ELSE 0 END,
     seed.pressure_value + days.day_order * 13,
     40 + ((seed.seq + days.day_order) * 17) % 140,

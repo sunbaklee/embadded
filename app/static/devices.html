@@ -91,7 +91,7 @@
           <span>특정 조건</span>
           <select id="condition-filter">
             <option value="all">조건 없음</option>
-            <option value="pressure">압력 감지 + 움직임 없음</option>
+            <option value="pressure">침대 사용 + 사람 미감지</option>
             <option value="low-battery">저배터리 20% 이하</option>
             <option value="no-battery">배터리 정보 없음</option>
             <option value="needs-attention">주의·위험·오프라인</option>
@@ -116,8 +116,8 @@
           <h2 id="result-title">조회 결과 <span id="result-count">0</span>대</h2>
         </div>
         <div class="result-actions">
-          <span class="refresh-note">장치 선택 시 24시간 활동 그래프 · 5초마다 자동 갱신</span>
-          <button id="create-device-button" class="primary-management-button" type="button">새 장치 등록</button>
+          <span id="result-guide" class="refresh-note">장치 선택 시 24시간 활동 그래프 · 5초마다 자동 갱신</span>
+          <button id="delete-selected-device" class="delete-selected-device" type="button">장치 삭제</button>
         </div>
       </div>
       <div id="recent-resolution-list" class="recent-resolution-list" hidden></div>

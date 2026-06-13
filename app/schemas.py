@@ -9,6 +9,16 @@ class SensorDataCreate(BaseModel):
     # 부분 업데이트 지원: 보드별로 자기 센서 값만 전송할 수 있도록 모두 선택값.
     # 예) PIR 보드는 pir_motion만, 압력 보드는 pressure_detected/pressure_value만 전송.
     pir_motion: bool | None = None
+    radar_online: bool | None = None
+    presence_detected: bool | None = None
+    moving_detected: bool | None = None
+    stationary_detected: bool | None = None
+    radar_distance_cm: int | None = Field(default=None, ge=0)
+    moving_distance_cm: int | None = Field(default=None, ge=0)
+    stationary_distance_cm: int | None = Field(default=None, ge=0)
+    moving_signal: int | None = Field(default=None, ge=0)
+    stationary_signal: int | None = Field(default=None, ge=0)
+    state: str | None = Field(default=None, max_length=30)
     pressure_detected: bool | None = None
     pressure_value: float | None = None
     battery_level: int | None = Field(default=None, ge=0, le=100)
@@ -34,6 +44,11 @@ class DeviceResponse(BaseModel):
     last_activity_at: datetime
     last_pressure_value: float | None
     last_pir_motion: bool
+    last_radar_online: bool | None
+    last_presence_detected: bool | None
+    last_moving_detected: bool | None
+    last_stationary_detected: bool | None
+    last_radar_distance_cm: int | None
     last_pressure_detected: bool
     battery_level: int | None
     wifi_rssi: int | None
@@ -62,6 +77,16 @@ class LogResponse(BaseModel):
     id: int
     device_id: str
     pir_motion: bool
+    radar_online: bool | None
+    presence_detected: bool | None
+    moving_detected: bool | None
+    stationary_detected: bool | None
+    radar_distance_cm: int | None
+    moving_distance_cm: int | None
+    stationary_distance_cm: int | None
+    moving_signal: int | None
+    stationary_signal: int | None
+    radar_state: str | None
     pressure_detected: bool
     pressure_value: float
     pressure_delta: float | None

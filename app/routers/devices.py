@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Device, utc_now
+from app.models import Alert, AlertActionLog, Device, SensorLog, utc_now
 from app.schemas import (
     ContactResponse,
     ContactUpdate,
@@ -89,6 +89,19 @@ def toggle_device_active(device_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(device)
     return device
+
+
+@router.delete("/{device_id}")
+def delete_device(device_id: str, db: Session = Depends(get_db)):
+    device = find_device(db, device_id)
+    alert_ids = select(Alert.id).where(Alert.device_id == device.id)
+
+    db.execute(delete(AlertActionLog).where(AlertActionLog.alert_id.in_(alert_ids)))
+    db.execute(delete(Alert).where(Alert.device_id == device.id))
+    db.execute(delete(SensorLog).where(SensorLog.device_id == device.id))
+    db.delete(device)
+    db.commit()
+    return {"message": "device deleted", "device_id": device_id}
 
 
 @router.get("/{device_id}/contacts", response_model=ContactResponse)

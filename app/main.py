@@ -6,7 +6,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.database import Base, engine, ensure_alert_columns, ensure_device_columns
+from app.database import (
+    Base,
+    engine,
+    ensure_alert_columns,
+    ensure_device_columns,
+    ensure_sensor_log_columns,
+)
 from app.routers import alerts, devices, reports, sensor
 from app.routers import simulation, status
 
@@ -18,6 +24,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_device_columns()
+    ensure_sensor_log_columns()
     ensure_alert_columns()
     yield
 

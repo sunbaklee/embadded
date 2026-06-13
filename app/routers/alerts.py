@@ -111,13 +111,13 @@ def safety_reasons(db: Session, device: Device) -> list[SafetyReasonResponse]:
     if (
         settings.pressure_no_motion_enabled
         and device.last_pressure_detected
-        and not device.last_pir_motion
+        and device.last_presence_detected is False
     ):
         reasons.append(
             SafetyReasonResponse(
-                code="pressure_without_motion",
-                title="침대 사용 중이지만 움직임이 없음",
-                detail="침대 사용이 감지된 상태였지만 PIR 움직임은 감지되지 않았습니다.",
+                code="pressure_without_presence",
+                title="침대 사용 중이지만 사람이 감지되지 않음",
+                detail="침대 사용은 감지되었지만 LD2410에서 사람의 존재가 감지되지 않았습니다.",
                 level="warning",
             )
         )

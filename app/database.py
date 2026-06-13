@@ -32,6 +32,11 @@ def ensure_device_columns() -> None:
     existing = {column["name"] for column in inspector.get_columns("devices")}
     columns = {
         "last_pir_motion": "BOOLEAN NOT NULL DEFAULT 0",
+        "last_radar_online": "BOOLEAN",
+        "last_presence_detected": "BOOLEAN",
+        "last_moving_detected": "BOOLEAN",
+        "last_stationary_detected": "BOOLEAN",
+        "last_radar_distance_cm": "INTEGER",
         "last_pressure_detected": "BOOLEAN NOT NULL DEFAULT 0",
         "battery_level": "INTEGER",
         "wifi_rssi": "INTEGER",
@@ -54,6 +59,32 @@ def ensure_device_columns() -> None:
             if name not in existing:
                 connection.execute(
                     text(f"ALTER TABLE devices ADD COLUMN {name} {definition}")
+                )
+
+
+def ensure_sensor_log_columns() -> None:
+    inspector = inspect(engine)
+    if "sensor_logs" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("sensor_logs")}
+    columns = {
+        "radar_online": "BOOLEAN",
+        "presence_detected": "BOOLEAN",
+        "moving_detected": "BOOLEAN",
+        "stationary_detected": "BOOLEAN",
+        "radar_distance_cm": "INTEGER",
+        "moving_distance_cm": "INTEGER",
+        "stationary_distance_cm": "INTEGER",
+        "moving_signal": "INTEGER",
+        "stationary_signal": "INTEGER",
+        "radar_state": "VARCHAR(30)",
+    }
+    with engine.begin() as connection:
+        for name, definition in columns.items():
+            if name not in existing:
+                connection.execute(
+                    text(f"ALTER TABLE sensor_logs ADD COLUMN {name} {definition}")
                 )
 
 

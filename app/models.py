@@ -24,6 +24,13 @@ class Device(Base):
     )
     last_pressure_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     last_pir_motion: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_radar_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    last_presence_detected: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    last_moving_detected: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    last_stationary_detected: Mapped[bool | None] = mapped_column(
+        Boolean, nullable=True
+    )
+    last_radar_distance_cm: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_pressure_detected: Mapped[bool] = mapped_column(Boolean, default=False)
     battery_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     wifi_rssi: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -60,6 +67,18 @@ class SensorLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     device_id: Mapped[int] = mapped_column(ForeignKey("devices.id"), index=True)
     pir_motion: Mapped[bool] = mapped_column(Boolean)
+    radar_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    presence_detected: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    moving_detected: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    stationary_detected: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    radar_distance_cm: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    moving_distance_cm: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    stationary_distance_cm: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    moving_signal: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    stationary_signal: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    radar_state: Mapped[str | None] = mapped_column(String(30), nullable=True)
     pressure_detected: Mapped[bool] = mapped_column(Boolean)
     pressure_value: Mapped[float] = mapped_column(Float)
     pressure_delta: Mapped[float | None] = mapped_column(Float, nullable=True)

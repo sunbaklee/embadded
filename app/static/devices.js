@@ -8,6 +8,8 @@ let offlineSeconds = 30;
 let currentPage = 1;
 let activityRequestId = 0;
 let activeActivityDeviceId = null;
+const selectedDeviceIds = new Set();
+let deleteSelectionMode = false;
 let resolutionRequestId = 0;
 let pendingResolutionDeviceId = null;
 let pendingContactDeviceId = null;
@@ -90,10 +92,29 @@ function isOnline(device) {
 }
 
 function sensorCondition(device) {
-  if (device.last_pir_motion) {
+  if (device.last_radar_online === false) {
+    return { className: "muted", label: "레이더 연결 끊김" };
+  }
+  if (device.last_moving_detected === true || device.last_pir_motion) {
     return { className: "normal", label: "움직임 감지" };
   }
+  if (device.last_stationary_detected === true) {
+    return { className: "muted", label: "정지 상태" };
+  }
   return { className: "muted", label: "움직임 없음" };
+}
+
+function presenceCondition(device) {
+  if (device.last_radar_online === false) {
+    return { className: "muted", label: "존재 확인 불가" };
+  }
+  if (device.last_presence_detected === true) {
+    return { className: "warning", label: "사람 있음" };
+  }
+  if (device.last_presence_detected === false) {
+    return { className: "muted", label: "사람 없음" };
+  }
+  return { className: "muted", label: "존재 정보 없음" };
 }
 
 // avoid 모듈 신호(last_pressure_detected)를 침대 사용 여부로 표시하는 부가 배지
@@ -110,6 +131,74 @@ async function getJson(url, options) {
     throw new Error(body.detail || `${url}: ${response.status}`);
   }
   return response.json();
+}
+
+async function deleteSelectedDevices() {
+  const deviceIds = [...selectedDeviceIds];
+  if (!deviceIds.length) return;
+
+  const confirmed = window.confirm(
+    `선택한 장치 ${deviceIds.length}대와 센서 기록, 알림을 모두 삭제할까요?`,
+  );
+  if (!confirmed) return;
+
+  const button = document.querySelector("#delete-selected-device");
+  button.disabled = true;
+  button.textContent = "삭제 중...";
+
+  try {
+    const failedDeviceIds = [];
+    for (const deviceId of deviceIds) {
+      try {
+        await getJson(`/api/devices/${encodeURIComponent(deviceId)}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        console.error(error);
+        failedDeviceIds.push(deviceId);
+      }
+    }
+
+    selectedDeviceIds.clear();
+    failedDeviceIds.forEach((deviceId) => selectedDeviceIds.add(deviceId));
+    if (!failedDeviceIds.length) {
+      deleteSelectionMode = false;
+    }
+    await refresh();
+
+    if (failedDeviceIds.length) {
+      window.alert(
+        `일부 장치를 삭제하지 못했습니다: ${failedDeviceIds.join(", ")}`,
+      );
+    }
+  } catch (error) {
+    window.alert(`장치 삭제 실패: ${error.message}`);
+  } finally {
+    button.disabled = false;
+    updateSelectedDeviceControl();
+  }
+}
+
+function updateSelectedDeviceControl() {
+  const button = document.querySelector("#delete-selected-device");
+  const guide = document.querySelector("#result-guide");
+  const selectedCount = selectedDeviceIds.size;
+  button.classList.toggle("active", deleteSelectionMode);
+  if (!deleteSelectionMode) {
+    button.textContent = "장치 삭제";
+    button.title = "삭제할 장치를 선택합니다.";
+    guide.textContent = "장치 선택 시 24시간 활동 그래프 · 5초마다 자동 갱신";
+    return;
+  }
+  button.textContent = selectedCount
+    ? `선택 장치 ${selectedCount}대 삭제`
+    : "취소";
+  button.title = selectedCount
+    ? `선택한 장치 ${selectedCount}대를 삭제합니다.`
+    : "장치 삭제 선택을 취소합니다.";
+  guide.textContent = selectedCount
+    ? `${selectedCount}대 선택됨 · 장치를 다시 누르면 선택 해제`
+    : "삭제할 장치를 여러 대 선택해 주세요.";
 }
 
 function safetyReasonMarkup(context) {
@@ -252,7 +341,10 @@ function updateQuickSelection() {
 
 function matchesCondition(device, condition) {
   if (condition === "pressure") {
-    return device.last_pressure_detected && !device.last_pir_motion;
+    return (
+      device.last_pressure_detected
+      && device.last_presence_detected === false
+    );
   }
   if (condition === "low-battery") {
     return device.battery_level != null && device.battery_level <= 20;
@@ -301,14 +393,15 @@ function filteredDevices() {
 function rowMarkup(device) {
   const online = isOnline(device);
   const condition = sensorCondition(device);
+  const presence = presenceCondition(device);
   const bed = bedUsage(device);
   const alert = allAlerts.find((item) => item.device_id === device.device_id);
   return `
     <tr
-      class="activity-device-trigger"
+      class="activity-device-trigger ${deleteSelectionMode && selectedDeviceIds.has(device.device_id) ? "selected" : ""}"
       data-activity-device="${encodeURIComponent(device.device_id)}"
       tabindex="0"
-      aria-label="${escapeAttribute(device.device_id)} 장치의 24시간 활동 그래프 보기"
+      aria-label="${escapeAttribute(device.device_id)} 장치 ${deleteSelectionMode ? "삭제 선택 또는 해제" : "24시간 활동 그래프 보기"}"
     >
       <td>
         <strong class="device-name">${escapeHtml(device.name || device.device_id)}</strong>
@@ -322,6 +415,7 @@ function rowMarkup(device) {
       <td title="${device.wifi_rssi != null ? `${device.wifi_rssi} dBm` : ""}">${wifiLabel(device.wifi_rssi)}</td>
       <td>
         <span class="sensor-condition ${condition.className}">${condition.label}</span>
+        <span class="sensor-condition ${presence.className}">${presence.label}</span>
         <span class="sensor-condition ${bed.className}">${bed.label}</span>
       </td>
       <td>
@@ -336,14 +430,15 @@ function rowMarkup(device) {
 function cardMarkup(device) {
   const online = isOnline(device);
   const condition = sensorCondition(device);
+  const presence = presenceCondition(device);
   const bed = bedUsage(device);
   const alert = allAlerts.find((item) => item.device_id === device.device_id);
   return `
     <article
-      class="management-device-card ${device.status} activity-device-trigger"
+      class="management-device-card ${device.status} activity-device-trigger ${deleteSelectionMode && selectedDeviceIds.has(device.device_id) ? "selected" : ""}"
       data-activity-device="${encodeURIComponent(device.device_id)}"
       tabindex="0"
-      aria-label="${escapeAttribute(device.device_id)} 장치의 24시간 활동 그래프 보기"
+      aria-label="${escapeAttribute(device.device_id)} 장치 ${deleteSelectionMode ? "삭제 선택 또는 해제" : "24시간 활동 그래프 보기"}"
     >
       <div class="management-card-head">
         <div>
@@ -356,6 +451,7 @@ function cardMarkup(device) {
       <div class="management-card-badges">
         <span class="management-badge ${online ? "online" : "offline"}">${online ? "온라인" : "오프라인"}</span>
         <span class="sensor-condition ${condition.className}">${condition.label}</span>
+        <span class="sensor-condition ${presence.className}">${presence.label}</span>
         <span class="sensor-condition ${bed.className}">${bed.label}</span>
       </div>
       <dl>
@@ -854,6 +950,7 @@ function render() {
   renderPagination(devices.length);
   renderRecentResolutions();
   updateQuickSelection();
+  updateSelectedDeviceControl();
   syncUrl();
 }
 
@@ -895,6 +992,10 @@ async function refresh() {
     ]);
     allDevices = devices;
     allAlerts = alerts;
+    const availableDeviceIds = new Set(devices.map((device) => device.device_id));
+    selectedDeviceIds.forEach((deviceId) => {
+      if (!availableDeviceIds.has(deviceId)) selectedDeviceIds.delete(deviceId);
+    });
     offlineSeconds = config.sensor_offline_seconds;
     populateLocations(devices);
     updateSummary(devices);
@@ -919,6 +1020,21 @@ Object.values(filters).forEach((element) => {
 });
 
 document.querySelector("#reset-filters").addEventListener("click", resetFilters);
+document.querySelector("#delete-selected-device").addEventListener("click", () => {
+  if (!deleteSelectionMode) {
+    deleteSelectionMode = true;
+    selectedDeviceIds.clear();
+    render();
+    return;
+  }
+  if (selectedDeviceIds.size) {
+    deleteSelectedDevices();
+    return;
+  }
+  deleteSelectionMode = false;
+  selectedDeviceIds.clear();
+  render();
+});
 document.querySelector(".management-summary").addEventListener("click", (event) => {
   const button = event.target.closest(".management-stat");
   if (!button) return;
@@ -957,7 +1073,17 @@ document.querySelector(".device-table-wrap").addEventListener("click", (event) =
 
   const trigger = event.target.closest("[data-activity-device]");
   if (trigger) {
-    openActivityDialog(decodeURIComponent(trigger.dataset.activityDevice));
+    const deviceId = decodeURIComponent(trigger.dataset.activityDevice);
+    if (deleteSelectionMode) {
+      if (selectedDeviceIds.has(deviceId)) {
+        selectedDeviceIds.delete(deviceId);
+      } else {
+        selectedDeviceIds.add(deviceId);
+      }
+      render();
+      return;
+    }
+    openActivityDialog(deviceId);
   }
 });
 
@@ -966,7 +1092,17 @@ document.querySelector(".device-table-wrap").addEventListener("keydown", (event)
   const trigger = event.target.closest("[data-activity-device]");
   if (!trigger || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
-  openActivityDialog(decodeURIComponent(trigger.dataset.activityDevice));
+  const deviceId = decodeURIComponent(trigger.dataset.activityDevice);
+  if (deleteSelectionMode) {
+    if (selectedDeviceIds.has(deviceId)) {
+      selectedDeviceIds.delete(deviceId);
+    } else {
+      selectedDeviceIds.add(deviceId);
+    }
+    render();
+    return;
+  }
+  openActivityDialog(deviceId);
 });
 
 document.querySelector("[data-close-activity]").addEventListener("click", closeActivityDialog);
@@ -995,7 +1131,7 @@ document.querySelector("#safety-resolution-form").addEventListener("change", (ev
   document.querySelector("#resolution-other-field").hidden = !isOther;
   document.querySelector("#resolution-other-detail").required = isOther;
 });
-document.querySelector("#create-device-button").addEventListener(
+document.querySelector("#create-device-button")?.addEventListener(
   "click",
   () => openDeviceEditor(),
 );

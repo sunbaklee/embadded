@@ -167,6 +167,7 @@
   vertical-align: middle;
 }
 .device-table tbody tr:hover { background: #fafcfb; }
+.device-table tbody tr.selected { background: #edf8f3; box-shadow: inset 4px 0 var(--normal); }
 .activity-device-trigger { cursor: pointer; }
 .activity-device-trigger:focus-visible {
   outline: 3px solid rgba(21, 128, 91, 0.24);
@@ -487,6 +488,21 @@
   text-decoration: none;
 }
 .result-actions { display: flex; align-items: center; gap: 12px; }
+.delete-selected-device {
+  padding: 8px 11px;
+  border: 1px solid #e0b8bb;
+  border-radius: 8px;
+  color: var(--danger);
+  background: #fff7f8;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.delete-selected-device:hover:not(:disabled) { border-color: var(--danger); background: var(--danger-soft); }
+.delete-selected-device.active { color: #fff; border-color: var(--danger); background: var(--danger); }
+.delete-selected-device.active:hover { background: #a92f35; }
+.delete-selected-device:disabled { opacity: 0.45; cursor: not-allowed; }
 .primary-management-button {
   padding: 9px 13px;
   border: 0;
@@ -696,6 +712,7 @@
   }
   .management-device-card.warning { --status-color: var(--warning); }
   .management-device-card.danger { --status-color: var(--danger); }
+  .management-device-card.selected { box-shadow: 0 0 0 2px rgba(21, 128, 91, 0.22); }
   .management-card-head { display: flex; justify-content: space-between; gap: 12px; }
   .management-card-head span:first-child { color: var(--muted); font-size: 0.65rem; }
   .management-card-head h3 { margin-top: 2px; font-size: 0.9rem; }

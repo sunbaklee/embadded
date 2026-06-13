@@ -39,14 +39,24 @@ def receive_sensor_data(payload: SensorDataCreate, db: Session = Depends(get_db)
             pressure_activity = pressure_delta >= settings.pressure_delta_threshold
         device.last_pressure_value = payload.pressure_value
 
-    # PIR 활동은 이번 패킷이 움직임을 보고했을 때만 인정한다.
-    # (직전 상태로 활동을 재판정하면 압력 패킷마다 가짜 활동이 생긴다.)
+    # Presence is stored as the current occupancy state, but inactivity time is
+    # reset only by actual movement (or a meaningful pressure change).
     activity_detected = bool(payload.pir_motion) or pressure_activity
 
     device.last_seen_at = now
     # 부분 업데이트: 보낸 필드만 갱신해 보드끼리 서로의 값을 덮어쓰지 않게 한다.
     if payload.pir_motion is not None:
         device.last_pir_motion = payload.pir_motion
+    if payload.radar_online is not None:
+        device.last_radar_online = payload.radar_online
+    if payload.presence_detected is not None:
+        device.last_presence_detected = payload.presence_detected
+    if payload.moving_detected is not None:
+        device.last_moving_detected = payload.moving_detected
+    if payload.stationary_detected is not None:
+        device.last_stationary_detected = payload.stationary_detected
+    if payload.radar_distance_cm is not None:
+        device.last_radar_distance_cm = payload.radar_distance_cm
     if payload.pressure_detected is not None:
         device.last_pressure_detected = payload.pressure_detected
     if payload.battery_level is not None:
@@ -66,6 +76,16 @@ def receive_sensor_data(payload: SensorDataCreate, db: Session = Depends(get_db)
     log = SensorLog(
         device_id=device.id,
         pir_motion=device.last_pir_motion,
+        radar_online=payload.radar_online,
+        presence_detected=payload.presence_detected,
+        moving_detected=payload.moving_detected,
+        stationary_detected=payload.stationary_detected,
+        radar_distance_cm=payload.radar_distance_cm,
+        moving_distance_cm=payload.moving_distance_cm,
+        stationary_distance_cm=payload.stationary_distance_cm,
+        moving_signal=payload.moving_signal,
+        stationary_signal=payload.stationary_signal,
+        radar_state=payload.state,
         pressure_detected=device.last_pressure_detected,
         pressure_value=device.last_pressure_value or 0.0,
         pressure_delta=pressure_delta,

@@ -54,6 +54,11 @@ def create_scenario(payload: SimulationCreate, db: Session = Depends(get_db)):
     device.last_activity_at = now - timedelta(seconds=elapsed)
     device.last_pressure_value = 1200
     device.last_pir_motion = payload.scenario == "normal"
+    device.last_radar_online = True
+    device.last_presence_detected = payload.scenario == "normal"
+    device.last_moving_detected = payload.scenario == "normal"
+    device.last_stationary_detected = False
+    device.last_radar_distance_cm = 100 if payload.scenario == "normal" else 0
     device.last_pressure_detected = payload.scenario != "normal"
     device.battery_level = 87
     device.wifi_rssi = -58
@@ -67,6 +72,16 @@ def create_scenario(payload: SimulationCreate, db: Session = Depends(get_db)):
         SensorLog(
             device_id=device.id,
             pir_motion=payload.scenario == "normal",
+            radar_online=True,
+            presence_detected=payload.scenario == "normal",
+            moving_detected=payload.scenario == "normal",
+            stationary_detected=False,
+            radar_distance_cm=100 if payload.scenario == "normal" else 0,
+            moving_distance_cm=100 if payload.scenario == "normal" else 0,
+            stationary_distance_cm=0,
+            moving_signal=75 if payload.scenario == "normal" else 0,
+            stationary_signal=0,
+            radar_state="moving" if payload.scenario == "normal" else "empty",
             pressure_detected=False,
             pressure_value=1200,
             pressure_delta=0,

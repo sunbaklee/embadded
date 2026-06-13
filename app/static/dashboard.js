@@ -116,6 +116,13 @@ function renderStatus(devices) {
     );
     const isOnline = lastSeenSeconds <= monitoringConfig.sensor_offline_seconds;
     const bedInUse = device.last_pressure_detected;
+    const presenceLabel = device.last_radar_online === false
+      ? "레이더 연결 끊김"
+      : device.last_presence_detected === true
+        ? "사람 있음"
+        : device.last_presence_detected === false
+          ? "사람 없음"
+          : "존재 정보 없음";
     return `
       <article class="device-card ${device.status}">
         <div class="device-head">
@@ -148,6 +155,7 @@ function renderStatus(devices) {
           <div><dt>Wi-Fi 신호</dt><dd>${wifiLabel(device.wifi_rssi)}</dd></div>
           <div><dt>설치 위치</dt><dd>${escapeHtml(device.location || "미설정")}</dd></div>
           <div><dt>침대 사용</dt><dd>${device.last_pressure_detected ? "사용 중" : "비어 있음"}</dd></div>
+          <div><dt>사람 존재</dt><dd>${presenceLabel}</dd></div>
         </dl>
       </article>`;
   }).join("");
@@ -172,7 +180,7 @@ function renderReceiveLog(logs) {
       <span class="terminal-icon" aria-hidden="true">&gt;_</span>
       <div>
         <strong>${formatRelativeDate(latest.received_at)} ${source}에서 데이터 수신됨</strong>
-        <p>${escapeHtml(latest.device_id)} · ${latest.activity_detected ? "움직임 감지" : "상태 유지"}</p>
+        <p>${escapeHtml(latest.device_id)} · ${latest.presence_detected === true ? "사람 있음" : latest.presence_detected === false ? "사람 없음" : "존재 정보 없음"}</p>
       </div>
     </div>
     <div class="http-log">
@@ -180,7 +188,7 @@ function renderReceiveLog(logs) {
       <strong>${responseStatus}</strong>
     </div>
     <div class="payload-log">
-      PIR=${latest.pir_motion ? "1" : "0"} · BED=${latest.pressure_detected ? "1" : "0"} · ACTIVITY=${latest.activity_detected ? "1" : "0"}
+      PRESENCE=${latest.presence_detected === null ? "-" : latest.presence_detected ? "1" : "0"} · MOVING=${latest.moving_detected === null ? "-" : latest.moving_detected ? "1" : "0"} · BED=${latest.pressure_detected ? "1" : "0"}
     </div>`;
 }
 
@@ -198,7 +206,7 @@ function renderCriteria() {
       <span>참고</span>
       <strong>침대 사용 여부는 부가 정보로 표시됩니다</strong>
     </div>
-    <p class="criteria-note">움직임(PIR) 감지가 활동 판정 기준입니다.</p>`;
+    <p class="criteria-note">LD2410의 이동 감지가 활동 시간 초기화 기준이며, 사람 존재 여부는 별도로 표시됩니다.</p>`;
 }
 
 function renderActivityChart(buckets) {
@@ -312,9 +320,9 @@ function renderLogs(logs) {
       <div class="list-content">
         <div class="list-heading">
           <strong>${escapeHtml(log.device_id)}</strong>
-          <span>${log.activity_detected ? "활동 감지" : "변화 없음"}</span>
+          <span>${log.presence_detected === true ? "사람 있음" : log.presence_detected === false ? "사람 없음" : "존재 정보 없음"}</span>
         </div>
-        <p>PIR ${log.pir_motion ? "감지" : "없음"} · 압력 ${log.pressure_value} · 변화량 ${log.pressure_delta ?? "-"}</p>
+        <p>존재 ${log.presence_detected === null ? "-" : log.presence_detected ? "감지" : "없음"} · 이동 ${log.moving_detected === null ? "-" : log.moving_detected ? "감지" : "없음"} · 거리 ${log.radar_distance_cm ?? "-"}cm</p>
         <time>${formatDate(log.received_at)}</time>
       </div>
     </article>

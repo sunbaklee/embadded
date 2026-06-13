@@ -425,20 +425,77 @@ curl.exe -X POST http://localhost:8000/api/sensor-data -H "Content-Type: applica
 
 같은 SQL을 다시 실행하면 해당 샘플 장치만 교체하므로 중복되지 않습니다.
 
+### Windows에서 테스트 SQL 넣기
+
+아래 명령은 모두 **프로젝트 폴더에서 PowerShell로 실행**합니다.
+
+1. Docker Desktop을 실행합니다.
+2. 프로젝트 서버를 백그라운드로 실행합니다.
+
+```powershell
+docker compose up -d --build
+```
+
+3. 컨테이너가 정상 실행 중인지 확인합니다.
+
+```powershell
+docker compose ps
+```
+
+`iot-lonecare` 컨테이너가 `Up` 또는 `healthy`로 표시되면 준비가 끝난
+상태입니다.
+
+4. 다음 명령을 그대로 실행해 테스트 SQL을 DB에 넣습니다.
+
 ```powershell
 docker compose exec web python -c "import sqlite3; db=sqlite3.connect('/app/data/lonecare.db'); db.executescript(open('/app/app/seeds/ui_preview.sql', encoding='utf-8').read()); db.close()"
 ```
 
-적용 후 다음 페이지에서 UI를 확인합니다.
+명령 실행 후 오류 없이 PowerShell 입력 줄로 돌아오면 적용된 것입니다.
+브라우저에서 다음 페이지를 새로고침해 확인합니다.
 
 - 대시보드: http://localhost:8000
 - 장치 관리: http://localhost:8000/devices
 
-샘플 데이터만 삭제:
+API로 장치 개수를 확인할 수도 있습니다.
+
+```powershell
+curl.exe http://localhost:8000/api/devices
+```
+
+### 테스트 데이터 삭제하기
+
+테스트가 끝나면 다음 명령으로 `ui_preview.sql`이 만든 샘플 데이터만
+삭제합니다. 실제 센서로 등록한 다른 장치는 삭제하지 않습니다.
 
 ```powershell
 docker compose exec web python -c "import sqlite3; db=sqlite3.connect('/app/data/lonecare.db'); db.executescript(open('/app/app/seeds/ui_preview_cleanup.sql', encoding='utf-8').read()); db.close()"
 ```
+
+### Raspberry Pi에서 테스트 SQL 넣기
+
+Raspberry Pi에서도 프로젝트 폴더에서 같은 방식으로 실행합니다. 운영 실행
+명령처럼 기본 Compose 파일을 명시합니다.
+
+```bash
+docker compose -f docker-compose.yml up -d --build
+docker compose -f docker-compose.yml exec web python -c "import sqlite3; db=sqlite3.connect('/app/data/lonecare.db'); db.executescript(open('/app/app/seeds/ui_preview.sql', encoding='utf-8').read()); db.close()"
+```
+
+샘플 데이터 삭제:
+
+```bash
+docker compose -f docker-compose.yml exec web python -c "import sqlite3; db=sqlite3.connect('/app/data/lonecare.db'); db.executescript(open('/app/app/seeds/ui_preview_cleanup.sql', encoding='utf-8').read()); db.close()"
+```
+
+### 실행이 안 될 때
+
+- `no configuration file provided`: 현재 위치가 프로젝트 폴더인지 확인합니다.
+- `service "web" is not running`: `docker compose up -d --build`를 먼저 실행합니다.
+- `no such file or directory`: 최신 프로젝트 파일을 받은 뒤 다시 실행합니다.
+- 화면이 바뀌지 않음: 브라우저에서 `Ctrl+F5`로 강력 새로고침합니다.
+- 전체 DB를 완전히 초기화하려면 `docker compose down -v`를 사용할 수 있지만,
+  실제 장치와 센서 기록도 모두 삭제되므로 주의합니다.
 
 ## 데이터 보존과 백업
 
