@@ -110,7 +110,7 @@
           <p class="eyebrow">RESULT</p>
           <h2 id="result-title">조회 결과 <span id="result-count">0</span>대</h2>
         </div>
-        <span class="refresh-note">5초마다 자동 갱신</span>
+        <span class="refresh-note">장치 선택 시 24시간 활동 그래프 · 5초마다 자동 갱신</span>
       </div>
       <div class="device-table-wrap">
         <table class="device-table">
@@ -138,6 +138,26 @@
       <nav id="pagination" class="pagination" aria-label="장치 목록 페이지"></nav>
     </section>
   </main>
+
+  <dialog id="device-activity-dialog" class="device-activity-dialog" aria-labelledby="activity-dialog-title">
+    <div class="activity-dialog-panel">
+      <header class="activity-dialog-header">
+        <div>
+          <p class="eyebrow">ACTIVITY DETAIL</p>
+          <h2 id="activity-dialog-title">24시간 활동 감지</h2>
+          <p id="activity-dialog-device" class="activity-dialog-device"></p>
+        </div>
+        <button class="activity-dialog-close" type="button" data-close-activity aria-label="활동 그래프 닫기">×</button>
+      </header>
+      <div id="device-activity-chart" class="device-activity-chart">
+        <div class="activity-chart-message">활동 데이터를 불러오는 중입니다.</div>
+      </div>
+      <div class="activity-dialog-legend">
+        <span><i></i>시간당 활동 감지 건수</span>
+        <span>최근 24시간 · 1시간 단위</span>
+      </div>
+    </div>
+  </dialog>
 
   <script src="/static/devices.js"></script>
 </body>

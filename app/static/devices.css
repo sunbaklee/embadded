@@ -116,6 +116,11 @@
   vertical-align: middle;
 }
 .device-table tbody tr:hover { background: #fafcfb; }
+.activity-device-trigger { cursor: pointer; }
+.activity-device-trigger:focus-visible {
+  outline: 3px solid rgba(21, 128, 91, 0.24);
+  outline-offset: -3px;
+}
 .device-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
 .device-location { display: block; margin-top: 2px; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; }
 .management-badge, .sensor-condition {
@@ -165,6 +170,87 @@
 .pagination button.active { border-color: var(--brand); color: #fff; background: var(--brand); }
 .pagination button:disabled { opacity: 0.4; cursor: default; }
 
+.device-activity-dialog {
+  width: min(960px, calc(100% - 32px));
+  max-width: none;
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 18px;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(12, 36, 29, 0.3);
+}
+.device-activity-dialog::backdrop { background: rgba(10, 30, 24, 0.58); backdrop-filter: blur(3px); }
+.activity-dialog-panel { padding: 24px; }
+.activity-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.activity-dialog-header .eyebrow { margin-bottom: 3px; color: var(--normal); }
+.activity-dialog-device { margin-top: 6px; color: var(--muted); font-size: 0.78rem; }
+.activity-dialog-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.activity-dialog-close:hover { color: var(--ink); border-color: #bdccc5; }
+.device-activity-chart { min-height: 340px; margin-top: 20px; }
+.activity-chart-message {
+  display: grid;
+  min-height: 340px;
+  place-items: center;
+  border: 1px dashed #cad6d1;
+  border-radius: 12px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: 0.78rem;
+}
+.activity-chart-message.error { color: var(--danger); }
+.activity-dialog-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 12px; }
+.activity-dialog-metrics div { padding: 12px 14px; border-radius: 10px; background: var(--surface-soft); }
+.activity-dialog-metrics span { display: block; color: var(--muted); font-size: 0.68rem; }
+.activity-dialog-metrics strong { display: block; margin-top: 2px; color: var(--brand); font-size: 1.08rem; }
+.activity-line-chart-wrap { position: relative; overflow-x: auto; }
+.activity-line-chart { display: block; width: 100%; min-width: 700px; height: auto; }
+.activity-grid-line { stroke: #e4ebe8; stroke-width: 1; }
+.activity-y-label, .activity-x-label { fill: var(--muted); font-family: inherit; font-size: 10px; }
+.activity-y-label { text-anchor: end; }
+.activity-chart-area { fill: url("#device-activity-gradient"); }
+.activity-chart-line {
+  fill: none;
+  stroke: var(--normal);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.activity-chart-point { fill: #fff; stroke: var(--normal); stroke-width: 3; }
+.activity-chart-overlay {
+  position: absolute;
+  inset: 45% 0 auto;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.76rem;
+}
+.activity-dialog-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.activity-dialog-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.activity-dialog-legend i { width: 9px; height: 9px; border-radius: 3px; background: var(--normal); }
+
 @media (max-width: 1050px) {
   .management-summary { grid-template-columns: repeat(5, minmax(110px, 1fr)); overflow-x: auto; padding-bottom: 5px; }
   .filter-grid { grid-template-columns: repeat(3, 1fr); }
@@ -208,6 +294,9 @@
   .management-device-card dl div { display: flex; justify-content: space-between; gap: 12px; }
   .management-device-card dt { color: var(--muted); }
   .management-device-card dd { text-align: right; font-weight: 700; }
+  .activity-dialog-panel { padding: 19px; }
+  .activity-dialog-metrics { grid-template-columns: 1fr; }
+  .activity-dialog-legend { justify-content: flex-start; flex-wrap: wrap; }
 }
 
 @media (max-width: 450px) {

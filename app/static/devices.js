@@ -5,6 +5,7 @@ const statusPriority = { danger: 0, warning: 1, normal: 2 };
 let allDevices = [];
 let offlineSeconds = 30;
 let currentPage = 1;
+let activityRequestId = 0;
 
 const filters = {
   search: document.querySelector("#search-filter"),
@@ -19,6 +20,12 @@ function escapeHtml(value) {
   const node = document.createElement("div");
   node.textContent = String(value);
   return node.innerHTML;
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value)
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function parseDate(value) {
@@ -52,6 +59,14 @@ function wifiLabel(rssi) {
   if (rssi >= -70) return "정상";
   if (rssi >= -80) return "약함";
   return "불안정";
+}
+
+function chartTime(value) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+  }).format(parseDate(value));
 }
 
 function isOnline(device) {
@@ -177,7 +192,12 @@ function rowMarkup(device) {
   const online = isOnline(device);
   const condition = sensorCondition(device);
   return `
-    <tr>
+    <tr
+      class="activity-device-trigger"
+      data-activity-device="${encodeURIComponent(device.device_id)}"
+      tabindex="0"
+      aria-label="${escapeAttribute(device.device_id)} 장치의 24시간 활동 그래프 보기"
+    >
       <td>
         <strong class="device-name">${escapeHtml(device.device_id)}</strong>
         <span class="device-location">${escapeHtml(device.location || "위치 미설정")}</span>
@@ -197,7 +217,12 @@ function cardMarkup(device) {
   const online = isOnline(device);
   const condition = sensorCondition(device);
   return `
-    <article class="management-device-card ${device.status}">
+    <article
+      class="management-device-card ${device.status} activity-device-trigger"
+      data-activity-device="${encodeURIComponent(device.device_id)}"
+      tabindex="0"
+      aria-label="${escapeAttribute(device.device_id)} 장치의 24시간 활동 그래프 보기"
+    >
       <div class="management-card-head">
         <div>
           <span>${escapeHtml(device.location || "위치 미설정")}</span>
@@ -237,6 +262,114 @@ async function confirmSafety(deviceId, button) {
     button.disabled = false;
     button.textContent = "안전 확인 완료";
   }
+}
+
+function renderDeviceActivityChart(buckets) {
+  const container = document.querySelector("#device-activity-chart");
+  const totalReceived = buckets.reduce((sum, bucket) => sum + bucket.total_count, 0);
+  const totalActivity = buckets.reduce((sum, bucket) => sum + bucket.activity_count, 0);
+  const activeHours = buckets.filter((bucket) => bucket.activity_count > 0).length;
+  const maxActivity = Math.max(0, ...buckets.map((bucket) => bucket.activity_count));
+  const maxY = Math.max(4, Math.ceil(maxActivity / 4) * 4);
+  const width = 900;
+  const height = 270;
+  const left = 48;
+  const right = 18;
+  const top = 18;
+  const bottom = 42;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const baseline = top + plotHeight;
+  const points = buckets.map((bucket, index) => {
+    const x = left + (index / Math.max(1, buckets.length - 1)) * plotWidth;
+    const y = baseline - (bucket.activity_count / maxY) * plotHeight;
+    return { bucket, x, y };
+  });
+  const linePath = points.map((point, index) => (
+    `${index ? "L" : "M"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
+  )).join(" ");
+  const areaPath = points.length
+    ? `${linePath} L ${points.at(-1).x.toFixed(2)} ${baseline}`
+      + ` L ${points[0].x.toFixed(2)} ${baseline} Z`
+    : "";
+  const yTicks = Array.from({ length: 5 }, (_, index) => {
+    const value = maxY - (maxY / 4) * index;
+    const y = top + (plotHeight / 4) * index;
+    return `
+      <line class="activity-grid-line" x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"></line>
+      <text class="activity-y-label" x="${left - 10}" y="${y + 4}">${value}</text>`;
+  }).join("");
+  const labelIndexes = [...new Set([0, 6, 12, 18, buckets.length - 1])]
+    .filter((index) => index >= 0 && index < buckets.length);
+  const xLabels = labelIndexes.map((index) => `
+    <text
+      class="activity-x-label"
+      x="${points[index].x}"
+      y="${height - 10}"
+      text-anchor="${index === 0 ? "start" : index === buckets.length - 1 ? "end" : "middle"}"
+    >${escapeHtml(chartTime(buckets[index].started_at))}</text>
+  `).join("");
+
+  container.innerHTML = `
+    <div class="activity-dialog-metrics">
+      <div><span>활동 감지</span><strong>${totalActivity}건</strong></div>
+      <div><span>활동 시간대</span><strong>${activeHours}시간</strong></div>
+      <div><span>센서 수신</span><strong>${totalReceived}건</strong></div>
+    </div>
+    <div class="activity-line-chart-wrap">
+      <svg class="activity-line-chart" viewBox="0 0 ${width} ${height}" role="img">
+        <defs>
+          <linearGradient id="device-activity-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#45ae83" stop-opacity="0.32"></stop>
+            <stop offset="100%" stop-color="#45ae83" stop-opacity="0.03"></stop>
+          </linearGradient>
+        </defs>
+        ${yTicks}
+        ${totalReceived ? `
+          <path class="activity-chart-area" d="${areaPath}"></path>
+          <path class="activity-chart-line" d="${linePath}"></path>
+          ${points.map(({ bucket, x, y }) => `
+            <circle class="activity-chart-point" cx="${x}" cy="${y}" r="4">
+              <title>${escapeHtml(chartTime(bucket.started_at))} · 활동 ${bucket.activity_count}건 · 수신 ${bucket.total_count}건</title>
+            </circle>
+          `).join("")}
+        ` : ""}
+        ${xLabels}
+      </svg>
+      ${totalReceived ? "" : '<p class="activity-chart-overlay">최근 24시간 동안 수신된 데이터가 없습니다.</p>'}
+    </div>`;
+}
+
+async function openActivityDialog(deviceId) {
+  const dialog = document.querySelector("#device-activity-dialog");
+  const device = allDevices.find((item) => item.device_id === deviceId);
+  const requestId = ++activityRequestId;
+  const location = device?.location || "위치 미설정";
+  const status = statusLabels[device?.status] || "상태 정보 없음";
+
+  document.querySelector("#activity-dialog-device").textContent =
+    `${deviceId} · ${location} · ${status}`;
+  document.querySelector("#device-activity-chart").innerHTML =
+    '<div class="activity-chart-message">활동 데이터를 불러오는 중입니다.</div>';
+  if (!dialog.open) dialog.showModal();
+
+  try {
+    const buckets = await getJson(
+      `/api/activity?hours=24&buckets=24&device_id=${encodeURIComponent(deviceId)}`,
+    );
+    if (requestId === activityRequestId && dialog.open) {
+      renderDeviceActivityChart(buckets);
+    }
+  } catch (error) {
+    if (requestId !== activityRequestId) return;
+    document.querySelector("#device-activity-chart").innerHTML =
+      `<div class="activity-chart-message error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function closeActivityDialog() {
+  activityRequestId += 1;
+  document.querySelector("#device-activity-dialog").close();
 }
 
 function renderPagination(total) {
@@ -368,8 +501,28 @@ document.querySelector("#pagination").addEventListener("click", (event) => {
 
 document.querySelector(".device-table-wrap").addEventListener("click", (event) => {
   const button = event.target.closest("[data-confirm-device]");
-  if (!button) return;
-  confirmSafety(button.dataset.confirmDevice, button);
+  if (button) {
+    confirmSafety(button.dataset.confirmDevice, button);
+    return;
+  }
+
+  const trigger = event.target.closest("[data-activity-device]");
+  if (trigger) {
+    openActivityDialog(decodeURIComponent(trigger.dataset.activityDevice));
+  }
+});
+
+document.querySelector(".device-table-wrap").addEventListener("keydown", (event) => {
+  if (event.target.closest("button, input, select, a")) return;
+  const trigger = event.target.closest("[data-activity-device]");
+  if (!trigger || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  openActivityDialog(decodeURIComponent(trigger.dataset.activityDevice));
+});
+
+document.querySelector("[data-close-activity]").addEventListener("click", closeActivityDialog);
+document.querySelector("#device-activity-dialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeActivityDialog();
 });
 
 restoreFilters();
