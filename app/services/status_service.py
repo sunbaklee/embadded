@@ -18,12 +18,18 @@ def inactive_seconds(device: Device, now: datetime | None = None) -> int:
     return max(0, int((current - as_utc(device.last_activity_at)).total_seconds()))
 
 
-def calculate_status(device: Device, now: datetime | None = None) -> str:
+def calculate_status(
+    device: Device,
+    warning_seconds: int,
+    danger_seconds: int,
+    now: datetime | None = None,
+) -> str:
+    if not device.is_active:
+        return "normal"
     elapsed = inactive_seconds(device, now)
-    threshold = settings.inactivity_threshold_seconds
-    if elapsed >= threshold:
+    if elapsed >= danger_seconds:
         return "danger"
-    if elapsed >= threshold / 2:
+    if elapsed >= warning_seconds:
         return "warning"
     return "normal"
 
@@ -31,7 +37,12 @@ def calculate_status(device: Device, now: datetime | None = None) -> str:
 def refresh_device_status(
     db: Session, device: Device, now: datetime | None = None
 ) -> str:
-    new_status = calculate_status(device, now)
+    new_status = calculate_status(
+        device,
+        settings.warning_threshold_seconds,
+        settings.inactivity_threshold_seconds,
+        now,
+    )
     device.status = new_status
     if new_status == "danger":
         create_danger_alert_if_needed(db, device)

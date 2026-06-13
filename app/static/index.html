@@ -17,6 +17,7 @@
       </div>
       <div class="hero-actions">
         <a class="hero-device-link" href="/devices">장치 관리</a>
+        <a class="hero-device-link" href="/resolutions">안전 확인 로그</a>
         <div class="connection" role="status" aria-live="polite">
           <span id="connection-dot" aria-hidden="true"></span>
           <div>
@@ -114,6 +115,7 @@
             <h2>위험 알림</h2>
           </div>
         </div>
+        <div id="dashboard-resolution-list" class="dashboard-resolution-list" hidden></div>
         <div id="alert-list" class="panel-list">
           <div class="empty-state compact"><strong>발생한 알림이 없습니다</strong></div>
         </div>
@@ -190,7 +192,113 @@
         </div>
       </article>
     </section>
+
+    <section class="report-section" aria-labelledby="report-title">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">ANALYTICS REPORT</p>
+          <h2 id="report-title">운영 리포트</h2>
+        </div>
+        <div class="report-tabs" role="tablist" aria-label="리포트 기간">
+          <button class="active" type="button" data-report-tab="daily">일일 리포트</button>
+          <button type="button" data-report-tab="weekly">주간 리포트</button>
+        </div>
+      </div>
+      <div id="daily-report-panel" class="report-panel">
+        <div id="report-summary" class="report-summary"></div>
+        <div id="device-report-list" class="device-report-list"></div>
+      </div>
+      <div id="weekly-report-panel" class="report-panel" hidden>
+        <article class="weekly-report-card">
+          <div class="card-heading">
+            <div>
+              <p class="eyebrow">LAST 7 DAYS</p>
+              <h2>최근 7일 안전 대응 추이</h2>
+            </div>
+          </div>
+          <div id="weekly-report-chart" class="weekly-report-chart"></div>
+          <div class="weekly-report-legend">
+            <span><i class="danger"></i>위험 알림</span>
+            <span><i class="activity"></i>움직임 감지</span>
+            <span><i class="resolved"></i>안전 확인 완료</span>
+          </div>
+        </article>
+      </div>
+    </section>
   </main>
+
+  <dialog id="dashboard-resolution-dialog" class="dashboard-resolution-dialog" aria-labelledby="dashboard-resolution-title">
+    <form id="dashboard-resolution-form" class="dashboard-resolution-panel">
+      <header class="dashboard-resolution-header">
+        <div>
+          <p class="eyebrow">SAFETY CONFIRMATION</p>
+          <h2 id="dashboard-resolution-title">안전 확인 완료 처리</h2>
+          <p id="dashboard-resolution-device" class="dashboard-resolution-device"></p>
+        </div>
+        <button class="dashboard-resolution-close" type="button" data-close-dashboard-resolution aria-label="안전 확인 창 닫기">×</button>
+      </header>
+
+      <section class="dashboard-resolution-reasons">
+        <h3>왜 안전 확인이 필요했나요?</h3>
+        <div id="dashboard-reason-list" class="dashboard-reason-list">
+          <div class="dashboard-dialog-message">미확인 원인을 불러오는 중입니다.</div>
+        </div>
+      </section>
+
+      <fieldset class="dashboard-resolution-methods">
+        <legend>어떤 방식으로 안전을 확인했나요?</legend>
+        <label>
+          <input type="radio" name="resolution_method" value="in_person" checked>
+          <span><strong>현장 방문</strong><small>직접 방문하여 상태를 확인했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="phone_call">
+          <span><strong>전화 통화</strong><small>본인과 통화하여 안전을 확인했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="caregiver_contact">
+          <span><strong>보호자 확인</strong><small>보호자 또는 담당자에게 확인했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="sensor_check">
+          <span><strong>센서 점검</strong><small>센서 연결과 측정 상태를 점검했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="false_alarm">
+          <span><strong>오탐 처리</strong><small>환경이나 센서 조건에 따른 오탐으로 판단했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="other">
+          <span><strong>기타</strong><small>목록에 없는 해결 방식을 직접 입력합니다.</small></span>
+        </label>
+      </fieldset>
+      <label id="dashboard-resolution-other-field" class="dashboard-resolution-other-field" hidden>
+        <span>기타 해결 방식</span>
+        <textarea id="dashboard-resolution-other-detail" maxlength="500" placeholder="어떤 방식으로 안전을 확인했는지 입력해 주세요."></textarea>
+      </label>
+
+      <div class="dashboard-resolution-actions">
+        <button class="dashboard-resolution-cancel" type="button" data-close-dashboard-resolution>취소</button>
+        <button id="dashboard-resolution-submit" class="dashboard-resolution-submit" type="submit">안전 확인 완료</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dashboard-workflow-dialog" class="dashboard-workflow-dialog" aria-labelledby="dashboard-workflow-title">
+    <div class="dashboard-workflow-panel">
+      <header class="dashboard-resolution-header">
+        <div>
+          <p class="eyebrow">RESPONSE WORKFLOW</p>
+          <h2 id="dashboard-workflow-title">위험 알림 대응 절차</h2>
+          <p id="dashboard-workflow-device" class="dashboard-resolution-device"></p>
+        </div>
+        <button class="dashboard-resolution-close" type="button" data-close-dashboard-workflow aria-label="대응 절차 창 닫기">×</button>
+      </header>
+      <div id="dashboard-workflow-content" class="dashboard-workflow-content">
+        <div class="dashboard-dialog-message">처리 단계를 불러오는 중입니다.</div>
+      </div>
+    </div>
+  </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="/static/dashboard.js"></script>

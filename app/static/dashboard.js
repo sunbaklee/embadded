@@ -5,6 +5,10 @@ const descriptions = {
   danger: "안전 확인이 즉시 필요합니다.",
 };
 let activityHours = 6;
+let dashboardResolutionRequestId = 0;
+let pendingDashboardResolutionDeviceId = null;
+let pendingDashboardWorkflowAlertId = null;
+const recentDashboardResolutions = new Map();
 let monitoringConfig = {
   warning_seconds: 21600,
   danger_seconds: 43200,
@@ -231,23 +235,66 @@ function renderActivityChart(buckets) {
 
 function renderAlerts(alerts) {
   const list = document.querySelector("#alert-list");
+  renderDashboardResolutions();
   if (!alerts.length) {
-    list.innerHTML = '<div class="empty-state compact"><strong>발생한 알림이 없습니다</strong></div>';
+    list.innerHTML = '<div class="empty-state compact"><strong>확인이 필요한 위험 알림이 없습니다</strong></div>';
     return;
   }
 
   list.innerHTML = alerts.map((alert) => `
-    <article class="list-row alert-row ${alert.is_resolved ? "resolved" : ""}">
-      <span class="list-icon" aria-hidden="true">${alert.is_resolved ? "✓" : "!"}</span>
+    <article class="list-row alert-row">
+      <span class="list-icon" aria-hidden="true">!</span>
       <div class="list-content">
         <div class="list-heading">
           <strong>${escapeHtml(alert.device_id)}</strong>
-          <span>${alert.is_resolved ? "해결됨" : "확인 필요"}</span>
+          <span>확인 필요</span>
         </div>
         <p>${escapeHtml(alert.message)}</p>
+        <span class="alert-workflow-stage">${escapeHtml(alert.workflow_stage_label)}</span>
         <time>${formatDate(alert.created_at)}</time>
       </div>
-      ${alert.is_resolved ? "" : `<button class="button small resolve-alert" type="button" data-alert-id="${alert.id}">안전 확인 완료</button>`}
+      <div class="alert-action-buttons">
+        <button class="alert-detail-button" type="button" data-dashboard-workflow="${alert.id}">대응 단계 보기</button>
+        <button class="button small resolve-alert" type="button" data-resolve-device="${encodeURIComponent(alert.device_id)}">안전 확인 완료</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+function dashboardReasonMarkup(context) {
+  return context.reasons.map((reason) => `
+    <article class="dashboard-reason-card ${reason.level}">
+      <span>${reason.level === "danger" ? "!" : "i"}</span>
+      <div>
+        <strong>${escapeHtml(reason.title)}</strong>
+        <p>${escapeHtml(reason.detail)}</p>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderDashboardResolutions() {
+  const container = document.querySelector("#dashboard-resolution-list");
+  const resolutions = [...recentDashboardResolutions.values()].reverse();
+  container.hidden = resolutions.length === 0;
+  if (!resolutions.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = resolutions.map((resolution) => `
+    <article class="dashboard-resolved-card">
+      <span class="dashboard-resolved-check">✓</span>
+      <div>
+        <div class="dashboard-resolved-heading">
+          <strong>${escapeHtml(resolution.device_id)}</strong>
+          <span>해결됨 · ${formatDate(resolution.confirmed_at)}</span>
+        </div>
+        <p><b>해결 방식</b>${escapeHtml(resolution.resolution_method_label)}</p>
+        ${resolution.resolution_detail ? `<p><b>상세 내용</b>${escapeHtml(resolution.resolution_detail)}</p>` : ""}
+        <p><b>확인이 안 된 이유</b>${resolution.unconfirmed_reasons.map(escapeHtml).join(" · ")}</p>
+        <small>페이지 새로고침 시 이 해결 안내는 사라집니다.</small>
+      </div>
     </article>
   `).join("");
 }
@@ -284,10 +331,224 @@ function showToast(message, type = "success") {
   }, 3000);
 }
 
-async function resolveAlert(id) {
-  await getJson(`/api/alerts/${id}/resolve`, { method: "POST" });
-  showToast("안전 확인을 완료하고 장치 상태를 안전으로 변경했습니다.");
-  await refresh();
+async function openDashboardResolutionDialog(deviceId) {
+  const dialog = document.querySelector("#dashboard-resolution-dialog");
+  const requestId = ++dashboardResolutionRequestId;
+  pendingDashboardResolutionDeviceId = deviceId;
+  document.querySelector("#dashboard-resolution-device").textContent = deviceId;
+  document.querySelector("#dashboard-reason-list").innerHTML =
+    '<div class="dashboard-dialog-message">미확인 원인을 불러오는 중입니다.</div>';
+  document.querySelector("#dashboard-resolution-form").reset();
+  document.querySelector("#dashboard-resolution-other-field").hidden = true;
+  document.querySelector("#dashboard-resolution-other-detail").required = false;
+  document.querySelector("#dashboard-resolution-submit").disabled = true;
+  if (!dialog.open) dialog.showModal();
+
+  try {
+    const context = await getJson(
+      `/api/alerts/device/${encodeURIComponent(deviceId)}/context`,
+    );
+    if (requestId !== dashboardResolutionRequestId || !dialog.open) return;
+    document.querySelector("#dashboard-reason-list").innerHTML =
+      dashboardReasonMarkup(context);
+    document.querySelector("#dashboard-resolution-submit").disabled =
+      !context.requires_confirmation;
+  } catch (error) {
+    if (requestId !== dashboardResolutionRequestId) return;
+    document.querySelector("#dashboard-reason-list").innerHTML =
+      `<div class="dashboard-dialog-message error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function closeDashboardResolutionDialog() {
+  dashboardResolutionRequestId += 1;
+  pendingDashboardResolutionDeviceId = null;
+  document.querySelector("#dashboard-resolution-dialog").close();
+}
+
+async function submitDashboardResolution(event) {
+  event.preventDefault();
+  if (!pendingDashboardResolutionDeviceId) return;
+
+  const deviceId = pendingDashboardResolutionDeviceId;
+  const submit = document.querySelector("#dashboard-resolution-submit");
+  const method = new FormData(event.currentTarget).get("resolution_method");
+  const detail = document.querySelector("#dashboard-resolution-other-detail").value.trim();
+  submit.disabled = true;
+  submit.textContent = "처리 중...";
+
+  try {
+    const resolution = await getJson(
+      `/api/alerts/device/${encodeURIComponent(deviceId)}/resolve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resolution_method: method,
+          resolution_detail: method === "other" ? detail : null,
+        }),
+      },
+    );
+    recentDashboardResolutions.set(deviceId, resolution);
+    closeDashboardResolutionDialog();
+    showToast(`${deviceId} 장치의 안전 확인을 완료했습니다.`);
+    await refresh();
+    document.querySelector("#dashboard-resolution-list").scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  } catch (error) {
+    document.querySelector("#dashboard-reason-list").insertAdjacentHTML(
+      "afterbegin",
+      `<div class="dashboard-submit-error">${escapeHtml(error.message)}</div>`,
+    );
+    submit.disabled = false;
+  } finally {
+    submit.textContent = "안전 확인 완료";
+    if (pendingDashboardResolutionDeviceId) submit.disabled = false;
+  }
+}
+
+function dashboardWorkflowButtons(workflow) {
+  const stages = [
+    "danger_detected",
+    "guardian_notified",
+    "guardian_waiting",
+    "admin_required",
+    "visit_requested",
+    "field_confirmed",
+  ];
+  const current = stages.indexOf(workflow.current_stage);
+  return `
+    <button class="${current < 2 ? "primary" : ""}" type="button" data-dashboard-workflow-action="notify_guardian" ${current >= 2 ? "disabled" : ""}>보호자 알림 발송</button>
+    <button class="${current === 2 ? "primary" : ""}" type="button" data-dashboard-workflow-action="escalate_admin" ${current >= 3 || current < 2 ? "disabled" : ""}>관리자에게 전달</button>
+    <button class="${current === 3 ? "primary" : ""}" type="button" data-dashboard-workflow-action="request_visit" ${current >= 4 || current < 3 ? "disabled" : ""}>현장 방문 요청</button>
+    <button class="${current === 4 ? "primary" : ""}" type="button" data-dashboard-workflow-action="complete_visit" ${current !== 4 ? "disabled" : ""}>현장 확인 완료</button>`;
+}
+
+function renderDashboardWorkflow(workflow) {
+  const contact = workflow.contact;
+  document.querySelector("#dashboard-workflow-device").textContent =
+    `${workflow.device_name} · ${workflow.device_id}`;
+  document.querySelector("#dashboard-workflow-content").innerHTML = `
+    <div class="dashboard-workflow-summary">
+      <div><span>현재 처리 단계</span><strong>${escapeHtml(workflow.current_stage_label)}</strong></div>
+      <span>${workflow.is_resolved ? "대응 완료" : "대응 진행 중"}</span>
+    </div>
+    <div class="dashboard-workflow-timeline">
+      ${workflow.stages.map((stage) => `
+        <div class="dashboard-workflow-stage ${stage.completed ? "completed" : ""} ${stage.current ? "current" : ""}">
+          <span class="dashboard-workflow-check">${stage.completed ? "✓" : ""}</span>
+          <div><strong>${escapeHtml(stage.label)}</strong><small>${stage.current ? "현재 단계" : stage.completed ? "처리 완료" : "대기"}</small></div>
+        </div>`).join("")}
+    </div>
+    <section class="dashboard-workflow-card">
+      <h3>긴급 연락망</h3>
+      <p>1순위 보호자: ${escapeHtml(contact.guardian_name || "미등록")} / ${escapeHtml(contact.guardian_relation || "관계 미등록")} / ${escapeHtml(contact.guardian_phone || "연락처 미등록")}</p>
+      <p>2순위 담당 복지사: ${escapeHtml(contact.worker_name || "미등록")} / ${escapeHtml(contact.worker_phone || "연락처 미등록")}</p>
+      <p>3순위 관리센터: ${escapeHtml(contact.center_phone || "연락처 미등록")}</p>
+    </section>
+    <section class="dashboard-workflow-card">
+      <h3>대응 로그</h3>
+      ${workflow.logs.length ? workflow.logs.map((log) => `
+        <div class="dashboard-workflow-log"><span>${escapeHtml(log.message)}</span><time>${formatDate(log.created_at)}</time></div>
+      `).join("") : "<p>기록된 대응 로그가 없습니다.</p>"}
+    </section>
+    <div class="dashboard-workflow-actions">${dashboardWorkflowButtons(workflow)}</div>`;
+}
+
+async function openDashboardWorkflow(alertId) {
+  pendingDashboardWorkflowAlertId = Number(alertId);
+  const dialog = document.querySelector("#dashboard-workflow-dialog");
+  document.querySelector("#dashboard-workflow-content").innerHTML =
+    '<div class="dashboard-dialog-message">처리 단계를 불러오는 중입니다.</div>';
+  if (!dialog.open) dialog.showModal();
+  try {
+    renderDashboardWorkflow(
+      await getJson(`/api/alerts/${alertId}/workflow`),
+    );
+  } catch (error) {
+    document.querySelector("#dashboard-workflow-content").innerHTML =
+      `<div class="dashboard-dialog-message error">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function closeDashboardWorkflow() {
+  pendingDashboardWorkflowAlertId = null;
+  document.querySelector("#dashboard-workflow-dialog").close();
+}
+
+async function progressDashboardWorkflow(action) {
+  if (!pendingDashboardWorkflowAlertId) return;
+  document.querySelectorAll("[data-dashboard-workflow-action]").forEach((button) => {
+    button.disabled = true;
+  });
+  try {
+    const workflow = await getJson(
+      `/api/alerts/${pendingDashboardWorkflowAlertId}/workflow/action`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      },
+    );
+    renderDashboardWorkflow(workflow);
+    await refresh();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function renderReports(report) {
+  const items = [
+    ["총 수신 데이터", report.summary.total_received, "건"],
+    ["움직임 감지", report.summary.activity_count, "회"],
+    ["위험 알림 발생", report.summary.danger_alerts, "건"],
+    ["주의 장치", report.summary.warning_devices, "대"],
+    ["안전 확인 완료", report.summary.completed_count, "건"],
+    ["오프라인 장치", report.summary.offline_devices, "대"],
+  ];
+  document.querySelector("#report-summary").innerHTML = items.map(([label, value, unit]) => `
+    <article class="report-summary-card"><span>${label}</span><strong>${value}${unit}</strong></article>
+  `).join("");
+  document.querySelector("#device-report-list").innerHTML = report.devices.map((device) => `
+    <article class="device-report-card ${device.status}">
+      <div class="device-report-head">
+        <strong>${escapeHtml(device.device_name)}</strong>
+        <span>${labels[device.status] || device.status}</span>
+      </div>
+      <dl>
+        <div><dt>최근 24시간 움직임 감지</dt><dd>${device.activity_count}회</dd></div>
+        <div><dt>마지막 움직임 감지</dt><dd>${formatDate(device.last_activity_at)}</dd></div>
+        <div><dt>마지막 센서 수신</dt><dd>${formatRelativeDate(device.last_seen_at)}</dd></div>
+        <div><dt>위험 상태 지속 시간</dt><dd>${formatDuration(device.inactive_seconds)}</dd></div>
+        <div><dt>현재 상태</dt><dd>${labels[device.status] || device.status}</dd></div>
+      </dl>
+    </article>
+  `).join("");
+
+  const maxValue = Math.max(
+    1,
+    ...report.weekly.flatMap((day) => [
+      day.danger_alerts,
+      day.activity_count,
+      day.completed_count,
+    ]),
+  );
+  document.querySelector("#weekly-report-chart").innerHTML = report.weekly.map((day) => {
+    const date = new Date(`${day.date}T00:00:00`);
+    const label = `${date.getMonth() + 1}/${date.getDate()}`;
+    const height = (value) => `${Math.max(value ? 10 : 2, (value / maxValue) * 100)}%`;
+    return `
+      <div class="weekly-day">
+        <div class="weekly-bars">
+          <i style="height:${height(day.danger_alerts)}" title="위험 알림 ${day.danger_alerts}건"></i>
+          <i class="activity" style="height:${height(day.activity_count)}" title="움직임 감지 ${day.activity_count}회"></i>
+          <i class="resolved" style="height:${height(day.completed_count)}" title="안전 확인 완료 ${day.completed_count}건"></i>
+        </div>
+        <span>${label}</span>
+      </div>`;
+  }).join("");
 }
 
 function setSimulationBusy(busy) {
@@ -369,17 +630,19 @@ async function configureMonitoring() {
 async function refresh() {
   const dot = document.querySelector("#connection-dot");
   try {
-    const [devices, alerts, logs, activity] = await Promise.all([
+    const [devices, alerts, logs, activity, report] = await Promise.all([
       getJson("/api/status"),
-      getJson("/api/alerts?limit=10"),
+      getJson("/api/alerts?resolved=false&limit=10"),
       getJson("/api/logs?limit=10"),
       getJson(`/api/activity?hours=${activityHours}&buckets=12`),
+      getJson("/api/reports"),
     ]);
     renderStatus(devices);
     renderAlerts(alerts);
     renderLogs(logs);
     renderReceiveLog(logs);
     renderActivityChart(activity);
+    renderReports(report);
     dot.className = "online";
     document.querySelector("#connection-text").textContent = "서버 연결됨";
     document.querySelector("#updated-at").textContent =
@@ -397,7 +660,32 @@ document.addEventListener("click", (event) => {
   if (scenarioButton) runSimulation(scenarioButton.dataset.scenario);
 
   const resolveButton = event.target.closest(".resolve-alert");
-  if (resolveButton) resolveAlert(resolveButton.dataset.alertId);
+  if (resolveButton) {
+    openDashboardResolutionDialog(
+      decodeURIComponent(resolveButton.dataset.resolveDevice),
+    );
+  }
+
+  const workflowButton = event.target.closest("[data-dashboard-workflow]");
+  if (workflowButton) {
+    openDashboardWorkflow(workflowButton.dataset.dashboardWorkflow);
+  }
+
+  const workflowAction = event.target.closest("[data-dashboard-workflow-action]");
+  if (workflowAction) {
+    progressDashboardWorkflow(workflowAction.dataset.dashboardWorkflowAction);
+  }
+
+  const reportTab = event.target.closest("[data-report-tab]");
+  if (reportTab) {
+    document.querySelectorAll("[data-report-tab]").forEach((button) => {
+      button.classList.toggle("active", button === reportTab);
+    });
+    document.querySelector("#daily-report-panel").hidden =
+      reportTab.dataset.reportTab !== "daily";
+    document.querySelector("#weekly-report-panel").hidden =
+      reportTab.dataset.reportTab !== "weekly";
+  }
 
   const rangeButton = event.target.closest("[data-hours]");
   if (rangeButton) {
@@ -407,6 +695,28 @@ document.addEventListener("click", (event) => {
     });
     refresh();
   }
+});
+document.querySelectorAll("[data-close-dashboard-resolution]").forEach((button) => {
+  button.addEventListener("click", closeDashboardResolutionDialog);
+});
+document.querySelector("#dashboard-resolution-dialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeDashboardResolutionDialog();
+});
+document.querySelector("#dashboard-resolution-form").addEventListener(
+  "submit",
+  submitDashboardResolution,
+);
+document.querySelector("#dashboard-resolution-form").addEventListener("change", (event) => {
+  if (event.target.name !== "resolution_method") return;
+  const isOther = event.target.value === "other";
+  document.querySelector("#dashboard-resolution-other-field").hidden = !isOther;
+  document.querySelector("#dashboard-resolution-other-detail").required = isOther;
+});
+document.querySelectorAll("[data-close-dashboard-workflow]").forEach((button) => {
+  button.addEventListener("click", closeDashboardWorkflow);
+});
+document.querySelector("#dashboard-workflow-dialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeDashboardWorkflow();
 });
 document.querySelector("#clear-simulation").addEventListener("click", clearSimulation);
 

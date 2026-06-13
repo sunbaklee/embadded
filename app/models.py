@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -28,6 +28,24 @@ class Device(Base):
     battery_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     wifi_rssi: Mapped[int | None] = mapped_column(Integer, nullable=True)
     location: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    room_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sensor_types: Mapped[str] = mapped_column(
+        String(255),
+        default="pir,pressure,battery,wifi",
+    )
+    risk_profile: Mapped[str] = mapped_column(String(50), default="default")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    guardian_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    guardian_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    guardian_relation: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    worker_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    worker_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    emergency_priority: Mapped[str] = mapped_column(
+        String(50),
+        default="guardian_first",
+    )
+    center_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
     )
@@ -68,5 +86,38 @@ class Alert(Base):
         DateTime(timezone=True), nullable=True
     )
     resolved_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    resolution_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    workflow_stage: Mapped[str] = mapped_column(
+        String(40),
+        default="danger_detected",
+        index=True,
+    )
+    stage_updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+    )
 
     device: Mapped[Device] = relationship(back_populates="alerts")
+    action_logs: Mapped[list["AlertActionLog"]] = relationship(
+        back_populates="alert",
+        cascade="all, delete-orphan",
+    )
+
+
+class AlertActionLog(Base):
+    __tablename__ = "alert_action_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alert_id: Mapped[int] = mapped_column(ForeignKey("alerts.id"), index=True)
+    stage: Mapped[str] = mapped_column(String(40), index=True)
+    action_type: Mapped[str] = mapped_column(String(40))
+    message: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        index=True,
+    )
+
+    alert: Mapped[Alert] = relationship(back_populates="action_logs")
+
+

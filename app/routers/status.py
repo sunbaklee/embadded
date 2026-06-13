@@ -22,10 +22,13 @@ router = APIRouter(prefix="/api", tags=["status"])
 @router.get("/config")
 def get_monitoring_config():
     return {
-        "warning_seconds": settings.inactivity_threshold_seconds // 2,
+        "warning_seconds": settings.warning_threshold_seconds,
         "danger_seconds": settings.inactivity_threshold_seconds,
         "pressure_delta_threshold": settings.pressure_delta_threshold,
         "sensor_offline_seconds": settings.sensor_offline_seconds,
+        "pressure_no_motion_enabled": settings.pressure_no_motion_enabled,
+        "low_battery_threshold": settings.low_battery_threshold,
+        "weak_wifi_threshold": settings.weak_wifi_threshold,
     }
 
 

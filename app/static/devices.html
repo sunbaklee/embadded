@@ -17,11 +17,16 @@
         <h1>장치 안전 상태 관리</h1>
         <p class="subtitle">조건별로 장치를 찾고, 확인이 필요한 대상을 빠르게 분류합니다.</p>
       </div>
-      <div class="connection management-connection" role="status" aria-live="polite">
-        <span id="connection-dot"></span>
-        <div>
-          <strong id="connection-text">서버 연결 확인 중</strong>
-          <span id="updated-at">잠시만 기다려 주세요</span>
+      <div class="management-header-actions">
+        <nav class="management-nav" aria-label="관리 메뉴">
+          <a href="/resolutions">안전 확인 완료 로그</a>
+        </nav>
+        <div class="connection management-connection" role="status" aria-live="polite">
+          <span id="connection-dot"></span>
+          <div>
+            <strong id="connection-text">서버 연결 확인 중</strong>
+            <span id="updated-at">잠시만 기다려 주세요</span>
+          </div>
         </div>
       </div>
     </div>
@@ -110,8 +115,12 @@
           <p class="eyebrow">RESULT</p>
           <h2 id="result-title">조회 결과 <span id="result-count">0</span>대</h2>
         </div>
-        <span class="refresh-note">장치 선택 시 24시간 활동 그래프 · 5초마다 자동 갱신</span>
+        <div class="result-actions">
+          <span class="refresh-note">장치 선택 시 24시간 활동 그래프 · 5초마다 자동 갱신</span>
+          <button id="create-device-button" class="primary-management-button" type="button">새 장치 등록</button>
+        </div>
       </div>
+      <div id="recent-resolution-list" class="recent-resolution-list" hidden></div>
       <div class="device-table-wrap">
         <table class="device-table">
           <thead>
@@ -152,9 +161,171 @@
       <div id="device-activity-chart" class="device-activity-chart">
         <div class="activity-chart-message">활동 데이터를 불러오는 중입니다.</div>
       </div>
+      <section id="device-safety-context" class="device-safety-context">
+        <div class="activity-chart-message compact">안전 확인 상태를 불러오는 중입니다.</div>
+      </section>
+      <button id="activity-contact-button" class="activity-contact-button" type="button">
+        <span class="activity-contact-icon" aria-hidden="true">☎</span>
+        <span class="activity-contact-body">
+          <strong>보호자 / 담당자 연락처 관리</strong>
+          <small>긴급 연락 순서와 담당자 정보를 확인하고 수정합니다.</small>
+        </span>
+        <span class="activity-contact-arrow" aria-hidden="true">→</span>
+      </button>
       <div class="activity-dialog-legend">
         <span><i></i>시간당 활동 감지 건수</span>
         <span>최근 24시간 · 1시간 단위</span>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="safety-resolution-dialog" class="safety-resolution-dialog" aria-labelledby="resolution-dialog-title">
+    <form id="safety-resolution-form" class="resolution-dialog-panel">
+      <header class="activity-dialog-header">
+        <div>
+          <p class="eyebrow">SAFETY CONFIRMATION</p>
+          <h2 id="resolution-dialog-title">안전 확인 완료 처리</h2>
+          <p id="resolution-dialog-device" class="activity-dialog-device"></p>
+        </div>
+        <button class="activity-dialog-close" type="button" data-close-resolution aria-label="안전 확인 창 닫기">×</button>
+      </header>
+
+      <section class="resolution-reason-section">
+        <h3>왜 안전 확인이 필요했나요?</h3>
+        <div id="resolution-reason-list" class="safety-reason-list">
+          <div class="activity-chart-message compact">미확인 원인을 불러오는 중입니다.</div>
+        </div>
+      </section>
+
+      <fieldset class="resolution-methods">
+        <legend>어떤 방식으로 안전을 확인했나요?</legend>
+        <label>
+          <input type="radio" name="resolution_method" value="in_person" checked>
+          <span><strong>현장 방문</strong><small>직접 방문하여 상태를 확인했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="phone_call">
+          <span><strong>전화 통화</strong><small>본인과 통화하여 안전을 확인했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="caregiver_contact">
+          <span><strong>보호자 확인</strong><small>보호자 또는 담당자에게 확인했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="sensor_check">
+          <span><strong>센서 점검</strong><small>센서 연결과 측정 상태를 점검했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="false_alarm">
+          <span><strong>오탐 처리</strong><small>환경이나 센서 조건에 따른 오탐으로 판단했습니다.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="resolution_method" value="other">
+          <span><strong>기타</strong><small>목록에 없는 해결 방식을 직접 입력합니다.</small></span>
+        </label>
+      </fieldset>
+      <label id="resolution-other-field" class="resolution-other-field" hidden>
+        <span>기타 해결 방식</span>
+        <textarea id="resolution-other-detail" name="resolution_detail" maxlength="500" placeholder="어떤 방식으로 안전을 확인했는지 입력해 주세요."></textarea>
+      </label>
+
+      <div class="resolution-dialog-actions">
+        <button class="resolution-cancel" type="button" data-close-resolution>취소</button>
+        <button id="submit-resolution" class="resolution-submit" type="submit">안전 확인 완료</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="device-editor-dialog" class="management-dialog" aria-labelledby="device-editor-title">
+    <form id="device-editor-form" class="management-dialog-panel">
+      <header class="activity-dialog-header">
+        <div>
+          <p class="eyebrow">DEVICE SETUP</p>
+          <h2 id="device-editor-title">새 장치 등록</h2>
+          <p class="activity-dialog-device">설치 정보와 센서 구성을 등록합니다.</p>
+        </div>
+        <button class="activity-dialog-close" type="button" data-close-device-editor aria-label="장치 편집 창 닫기">×</button>
+      </header>
+      <div class="management-form-grid">
+        <label><span>장치 ID</span><input id="device-id-input" name="device_id" required maxlength="100" placeholder="예: LC-ROOM-301"></label>
+        <label><span>장치 이름</span><input name="name" required maxlength="100" placeholder="예: 라온채-301호"></label>
+        <label><span>설치 위치</span><input name="location" required maxlength="100" placeholder="예: 라온채 3층"></label>
+        <label><span>방 이름</span><input name="room_name" required maxlength="100" placeholder="예: 301호 거실"></label>
+        <label><span>위험 기준 선택</span>
+          <select name="risk_profile">
+            <option value="default">기본 기준</option>
+            <option value="sensitive">민감 기준</option>
+            <option value="relaxed">완화 기준</option>
+          </select>
+        </label>
+      </div>
+      <fieldset class="sensor-type-fieldset">
+        <legend>센서 종류</legend>
+        <label><input type="checkbox" name="sensor_types" value="pir" checked> PIR 움직임 센서</label>
+        <label><input type="checkbox" name="sensor_types" value="pressure" checked> 압력 센서</label>
+        <label><input type="checkbox" name="sensor_types" value="battery" checked> 배터리 센서</label>
+        <label><input type="checkbox" name="sensor_types" value="wifi" checked> Wi-Fi 상태 센서</label>
+      </fieldset>
+      <div class="management-form-grid linked-contact-fields">
+        <label><span>보호자 연결</span><input name="guardian_name" maxlength="100" placeholder="보호자 이름"></label>
+        <label><span>보호자 연락처</span><input name="guardian_phone" maxlength="30" placeholder="010-0000-0000"></label>
+        <label><span>담당자 연결</span><input name="worker_name" maxlength="100" placeholder="담당 복지사 이름"></label>
+        <label><span>담당자 연락처</span><input name="worker_phone" maxlength="30" placeholder="010-0000-0000"></label>
+      </div>
+      <p id="device-editor-error" class="management-form-error" hidden></p>
+      <div class="resolution-dialog-actions">
+        <button class="resolution-cancel" type="button" data-close-device-editor>취소</button>
+        <button id="device-editor-submit" class="resolution-submit" type="submit">장치 저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="contact-dialog" class="management-dialog" aria-labelledby="contact-dialog-title">
+    <form id="contact-form" class="management-dialog-panel">
+      <header class="activity-dialog-header">
+        <div>
+          <p class="eyebrow">CONTACT MANAGEMENT</p>
+          <h2 id="contact-dialog-title">보호자 / 담당자 연락처 관리</h2>
+          <p id="contact-dialog-device" class="activity-dialog-device"></p>
+        </div>
+        <button class="activity-dialog-close" type="button" data-close-contact aria-label="연락처 관리 창 닫기">×</button>
+      </header>
+      <div class="management-form-grid contact-form-grid">
+        <label><span>보호자 이름</span><input name="guardian_name" maxlength="100"></label>
+        <label><span>보호자 전화번호</span><input name="guardian_phone" maxlength="30"></label>
+        <label><span>관계</span><input name="guardian_relation" maxlength="50" placeholder="예: 자녀"></label>
+        <label><span>담당 복지사 이름</span><input name="worker_name" maxlength="100"></label>
+        <label><span>담당 복지사 연락처</span><input name="worker_phone" maxlength="30"></label>
+        <label><span>긴급 연락 우선순위</span>
+          <select name="emergency_priority">
+            <option value="guardian_first">보호자 우선</option>
+            <option value="worker_first">담당 복지사 우선</option>
+            <option value="center_first">관리센터 우선</option>
+          </select>
+        </label>
+        <label class="wide-field"><span>관리센터 연락처</span><input name="center_phone" maxlength="30"></label>
+      </div>
+      <section id="contact-priority-preview" class="contact-priority-preview"></section>
+      <p id="contact-form-error" class="management-form-error" hidden></p>
+      <div class="resolution-dialog-actions">
+        <button class="resolution-cancel" type="button" data-close-contact>취소</button>
+        <button class="resolution-submit" type="submit">연락처 저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="workflow-dialog" class="management-dialog workflow-dialog" aria-labelledby="workflow-dialog-title">
+    <div class="management-dialog-panel">
+      <header class="activity-dialog-header">
+        <div>
+          <p class="eyebrow">RESPONSE WORKFLOW</p>
+          <h2 id="workflow-dialog-title">위험 알림 대응 절차</h2>
+          <p id="workflow-dialog-device" class="activity-dialog-device"></p>
+        </div>
+        <button class="activity-dialog-close" type="button" data-close-workflow aria-label="대응 절차 창 닫기">×</button>
+      </header>
+      <div id="workflow-content" class="workflow-content">
+        <div class="activity-chart-message compact">처리 단계를 불러오는 중입니다.</div>
       </div>
     </div>
   </dialog>

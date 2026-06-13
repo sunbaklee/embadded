@@ -98,6 +98,14 @@ SELECT
     datetime('now', printf('-%d days', 5 + seq % 24))
 FROM generated;
 
+DELETE FROM alert_action_logs
+WHERE alert_id IN (
+    SELECT alerts.id
+    FROM alerts
+    JOIN devices ON devices.id = alerts.device_id
+    WHERE devices.device_id IN (SELECT device_id FROM ui_seed_devices)
+);
+
 DELETE FROM alerts
 WHERE device_id IN (
     SELECT id
@@ -117,6 +125,7 @@ WHERE device_id IN (SELECT device_id FROM ui_seed_devices);
 
 INSERT INTO devices (
     device_id,
+    name,
     status,
     last_seen_at,
     last_activity_at,
@@ -126,9 +135,21 @@ INSERT INTO devices (
     battery_level,
     wifi_rssi,
     location,
+    room_name,
+    sensor_types,
+    risk_profile,
+    is_active,
+    guardian_name,
+    guardian_phone,
+    guardian_relation,
+    worker_name,
+    worker_phone,
+    emergency_priority,
+    center_phone,
     created_at
 )
 SELECT
+    device_id,
     device_id,
     status,
     last_seen_at,
@@ -139,6 +160,17 @@ SELECT
     battery_level,
     wifi_rssi,
     location,
+    location,
+    'pir,pressure,battery,wifi',
+    CASE WHEN seq % 9 = 0 THEN 'sensitive' ELSE 'default' END,
+    1,
+    '김' || printf('%02d', seq) || ' 보호자',
+    '010-' || printf('%04d', 1000 + seq) || '-' || printf('%04d', 3000 + seq),
+    CASE WHEN seq % 3 = 0 THEN '자녀' WHEN seq % 3 = 1 THEN '형제' ELSE '조카' END,
+    '박' || printf('%02d', (seq - 1) % 8 + 1) || ' 복지사',
+    '010-5500-' || printf('%04d', 2000 + seq),
+    'guardian_first',
+    '051-700-' || printf('%04d', 1000 + (seq % 10)),
     created_at
 FROM ui_seed_devices;
 
@@ -183,6 +215,35 @@ FROM ui_seed_devices AS seed
 JOIN devices AS device ON device.device_id = seed.device_id
 CROSS JOIN log_offsets AS offsets;
 
+-- One historical activity sample per device for each of the previous six days.
+WITH day_offsets(day_order) AS (
+    VALUES (1), (2), (3), (4), (5), (6)
+)
+INSERT INTO sensor_logs (
+    device_id,
+    pir_motion,
+    pressure_detected,
+    pressure_value,
+    pressure_delta,
+    activity_detected,
+    received_at
+)
+SELECT
+    device.id,
+    CASE WHEN (seed.seq + days.day_order) % 3 = 0 THEN 1 ELSE 0 END,
+    CASE WHEN (seed.seq + days.day_order) % 4 = 0 THEN 1 ELSE 0 END,
+    seed.pressure_value + days.day_order * 13,
+    40 + ((seed.seq + days.day_order) * 17) % 140,
+    CASE WHEN (seed.seq + days.day_order) % 3 = 0 THEN 1 ELSE 0 END,
+    datetime(
+        'now',
+        printf('-%d days', days.day_order),
+        printf('-%d hours', seed.seq % 18)
+    )
+FROM ui_seed_devices AS seed
+JOIN devices AS device ON device.device_id = seed.device_id
+CROSS JOIN day_offsets AS days;
+
 INSERT INTO alerts (
     device_id,
     level,
@@ -190,7 +251,10 @@ INSERT INTO alerts (
     is_resolved,
     created_at,
     resolved_at,
-    resolved_reason
+    resolved_reason,
+    resolution_detail,
+    workflow_stage,
+    stage_updated_at
 )
 SELECT
     device.id,
@@ -199,10 +263,140 @@ SELECT
     0,
     datetime('now', printf('-%d minutes', 8 + seed.seq)),
     NULL,
-    NULL
+    NULL,
+    NULL,
+    CASE seed.seq % 5
+        WHEN 0 THEN 'danger_detected'
+        WHEN 1 THEN 'guardian_waiting'
+        WHEN 2 THEN 'admin_required'
+        WHEN 3 THEN 'visit_requested'
+        ELSE 'danger_detected'
+    END,
+    datetime('now', printf('-%d minutes', 4 + seed.seq))
 FROM ui_seed_devices AS seed
 JOIN devices AS device ON device.device_id = seed.device_id
 WHERE seed.status = 'danger';
+
+INSERT INTO alert_action_logs (alert_id, stage, action_type, message, created_at)
+SELECT
+    alert.id,
+    'danger_detected',
+    'danger_detected',
+    '위험 기준을 초과하여 위험 알림이 생성되었습니다.',
+    alert.created_at
+FROM alerts AS alert
+JOIN devices AS device ON device.id = alert.device_id
+WHERE device.device_id IN (SELECT device_id FROM ui_seed_devices)
+  AND alert.is_resolved = 0;
+
+INSERT INTO alert_action_logs (alert_id, stage, action_type, message, created_at)
+SELECT
+    alert.id,
+    'guardian_notified',
+    'notify_guardian',
+    '보호자에게 1차 알림 발송 완료',
+    datetime(alert.created_at, '+2 minutes')
+FROM alerts AS alert
+JOIN devices AS device ON device.id = alert.device_id
+WHERE device.device_id IN (SELECT device_id FROM ui_seed_devices)
+  AND alert.workflow_stage IN ('guardian_waiting', 'admin_required', 'visit_requested');
+
+INSERT INTO alert_action_logs (alert_id, stage, action_type, message, created_at)
+SELECT
+    alert.id,
+    'guardian_waiting',
+    'notify_guardian',
+    '보호자 응답 대기 상태로 변경',
+    datetime(alert.created_at, '+3 minutes')
+FROM alerts AS alert
+JOIN devices AS device ON device.id = alert.device_id
+WHERE device.device_id IN (SELECT device_id FROM ui_seed_devices)
+  AND alert.workflow_stage IN ('guardian_waiting', 'admin_required', 'visit_requested');
+
+INSERT INTO alert_action_logs (alert_id, stage, action_type, message, created_at)
+SELECT
+    alert.id,
+    'admin_required',
+    'escalate_admin',
+    '보호자 미응답으로 담당 복지사에게 알림 전달',
+    datetime(alert.created_at, '+5 minutes')
+FROM alerts AS alert
+JOIN devices AS device ON device.id = alert.device_id
+WHERE device.device_id IN (SELECT device_id FROM ui_seed_devices)
+  AND alert.workflow_stage IN ('admin_required', 'visit_requested');
+
+INSERT INTO alert_action_logs (alert_id, stage, action_type, message, created_at)
+SELECT
+    alert.id,
+    'visit_requested',
+    'request_visit',
+    '담당 복지사에게 현장 방문 요청',
+    datetime(alert.created_at, '+7 minutes')
+FROM alerts AS alert
+JOIN devices AS device ON device.id = alert.device_id
+WHERE device.device_id IN (SELECT device_id FROM ui_seed_devices)
+  AND alert.workflow_stage = 'visit_requested';
+
+-- Completed cases for the persistent safety-confirmation history page.
+INSERT INTO alerts (
+    device_id,
+    level,
+    message,
+    is_resolved,
+    created_at,
+    resolved_at,
+    resolved_reason,
+    resolution_detail,
+    workflow_stage,
+    stage_updated_at
+)
+SELECT
+    device.id,
+    'danger',
+    seed.location || ': 센서 미수신과 장시간 무활동으로 안전 확인이 필요했습니다.',
+    1,
+    datetime('now', printf('-%d days', 1 + seed.seq % 6)),
+    CASE seed.seq
+        WHEN 5 THEN datetime('now', '-4 hours')
+        WHEN 15 THEN datetime('now', '-1 day', '-3 hours')
+        WHEN 25 THEN datetime('now', '-2 days', '-2 hours')
+        WHEN 35 THEN datetime('now', '-3 days', '-5 hours')
+        ELSE datetime('now', '-4 days', '-1 hour')
+    END,
+    CASE seed.seq
+        WHEN 5 THEN 'in_person'
+        WHEN 15 THEN 'phone_call'
+        WHEN 25 THEN 'caregiver_contact'
+        WHEN 35 THEN 'sensor_check'
+        ELSE 'other'
+    END,
+    CASE WHEN seed.seq = 45
+        THEN '관리센터 CCTV와 이웃 방문 확인을 함께 진행'
+        ELSE NULL
+    END,
+    'field_confirmed',
+    CASE seed.seq
+        WHEN 5 THEN datetime('now', '-4 hours')
+        WHEN 15 THEN datetime('now', '-1 day', '-3 hours')
+        WHEN 25 THEN datetime('now', '-2 days', '-2 hours')
+        WHEN 35 THEN datetime('now', '-3 days', '-5 hours')
+        ELSE datetime('now', '-4 days', '-1 hour')
+    END
+FROM ui_seed_devices AS seed
+JOIN devices AS device ON device.device_id = seed.device_id
+WHERE seed.seq IN (5, 15, 25, 35, 45);
+
+INSERT INTO alert_action_logs (alert_id, stage, action_type, message, created_at)
+SELECT
+    alert.id,
+    'field_confirmed',
+    'safety_confirmed',
+    '안전 확인 완료: ' || COALESCE(alert.resolution_detail, alert.resolved_reason),
+    alert.resolved_at
+FROM alerts AS alert
+JOIN devices AS device ON device.id = alert.device_id
+WHERE device.device_id IN (SELECT device_id FROM ui_seed_devices)
+  AND alert.is_resolved = 1;
 
 COMMIT;
 

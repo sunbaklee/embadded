@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123c34">
+  <title>안전 확인 완료 로그 | IoT LoneCare</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/admin-pages.css">
+</head>
+<body class="admin-page">
+  <header class="admin-header">
+    <div class="admin-header-inner">
+      <div>
+        <a class="admin-back-link" href="/">← 대시보드</a>
+        <p class="eyebrow">RESOLUTION HISTORY</p>
+        <h1>안전 확인 완료 로그</h1>
+        <p class="subtitle">위험 원인과 확인 방식, 현장 대응 결과를 한곳에서 조회합니다.</p>
+      </div>
+      <nav class="admin-nav">
+        <a href="/">대시보드</a>
+        <a href="/devices">장치 관리</a>
+      </nav>
+    </div>
+  </header>
+  <main class="admin-main">
+    <section class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <p class="eyebrow">COMPLETED CASES</p>
+          <h2>완료된 안전 확인</h2>
+          <p>새로고침 후에도 유지되는 공식 처리 이력입니다.</p>
+        </div>
+      </div>
+      <div class="history-toolbar">
+        <input id="history-search" type="search" placeholder="장치명, 위치, 해결 방식 검색">
+        <select id="history-method">
+          <option value="all">전체 해결 방식</option>
+          <option value="in_person">현장 방문</option>
+          <option value="phone_call">전화 통화</option>
+          <option value="caregiver_contact">보호자 확인</option>
+          <option value="sensor_check">센서 점검</option>
+          <option value="false_alarm">오탐 처리</option>
+          <option value="other">기타</option>
+          <option value="activity_detected">센서 자동 확인</option>
+        </select>
+      </div>
+      <div id="history-summary" class="history-summary"></div>
+      <div id="resolution-history-list" class="resolution-history-list">
+        <div class="history-empty">안전 확인 완료 로그를 불러오는 중입니다.</div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/resolutions.js"></script>
+</body>
+</html>
