@@ -14,7 +14,8 @@ class PortalConfig {
     pinMode(0, INPUT_PULLUP);
     delay(500);
 
-    if (digitalRead(0) == LOW || !hasSettings() || !connect()) {
+    if (consumePortalRequest() || digitalRead(0) == LOW ||
+        !hasSettings() || !connect()) {
       startPortal();
       return false;
     }
@@ -32,30 +33,30 @@ class PortalConfig {
     return false;
   }
 
-  void handleResetButton() {
+  void handleConfigButton() {
     const bool pressed = digitalRead(0) == LOW;
 
-    if (pressed && resetPressedAt_ == 0) {
-      resetPressedAt_ = millis();
+    if (pressed && configButtonPressedAt_ == 0) {
+      configButtonPressedAt_ = millis();
+      Serial.println("BOOT pressed. Hold for 5 seconds to open settings.");
     }
 
-    if (!pressed) {
-      resetPressedAt_ = 0;
-      resetTriggered_ = false;
+    if (pressed) {
+      if (!portalRequested_ &&
+          millis() - configButtonPressedAt_ >= CONFIG_BUTTON_HOLD_MS) {
+        portalRequested_ = true;
+        Serial.println("Settings requested. Release BOOT.");
+      }
       return;
     }
 
-    if (!resetTriggered_ && millis() - resetPressedAt_ >= 5000) {
-      resetTriggered_ = true;
-      Serial.println("Clearing saved Wi-Fi and server settings...");
-
-      preferences_.begin("lonecare", false);
-      preferences_.clear();
-      preferences_.end();
-
-      delay(500);
-      ESP.restart();
+    if (portalRequested_) {
+      configButtonPressedAt_ = 0;
+      portalRequested_ = false;
+      requestPortalAfterRestart();
     }
+
+    configButtonPressedAt_ = 0;
   }
 
   String sensorUrl() const {
@@ -63,9 +64,18 @@ class PortalConfig {
            "/api/sensor-data";
   }
 
+  const String& roomName() const {
+    return roomName_;
+  }
+
+  const String& deviceLocation() const {
+    return deviceLocation_;
+  }
+
  private:
   static constexpr byte DNS_PORT = 53;
   static constexpr unsigned long CONNECT_TIMEOUT_MS = 20000;
+  static constexpr unsigned long CONFIG_BUTTON_HOLD_MS = 5000;
 
   Preferences preferences_;
   DNSServer dnsServer_;
@@ -74,9 +84,11 @@ class PortalConfig {
   String password_;
   String serverHost_;
   uint16_t serverPort_ = 8000;
+  String roomName_;
+  String deviceLocation_;
   String deviceType_;
-  unsigned long resetPressedAt_ = 0;
-  bool resetTriggered_ = false;
+  unsigned long configButtonPressedAt_ = 0;
+  bool portalRequested_ = false;
 
   void load() {
     preferences_.begin("lonecare", true);
@@ -84,6 +96,8 @@ class PortalConfig {
     password_ = preferences_.getString("password", "");
     serverHost_ = preferences_.getString("server", "");
     serverPort_ = preferences_.getUShort("port", 8000);
+    roomName_ = preferences_.getString("room_name", "");
+    deviceLocation_ = preferences_.getString("location", "");
     preferences_.end();
 
     if (serverPort_ == 0) {
@@ -92,7 +106,27 @@ class PortalConfig {
   }
 
   bool hasSettings() const {
-    return !ssid_.isEmpty() && !serverHost_.isEmpty();
+    return !ssid_.isEmpty() && !serverHost_.isEmpty() &&
+           !roomName_.isEmpty() && !deviceLocation_.isEmpty();
+  }
+
+  bool consumePortalRequest() {
+    preferences_.begin("lonecare", false);
+    const bool requested = preferences_.getBool("force_cfg", false);
+    if (requested) {
+      preferences_.remove("force_cfg");
+    }
+    preferences_.end();
+    return requested;
+  }
+
+  void requestPortalAfterRestart() {
+    Serial.println("Restarting in configuration mode...");
+    preferences_.begin("lonecare", false);
+    preferences_.putBool("force_cfg", true);
+    preferences_.end();
+    delay(300);
+    ESP.restart();
   }
 
   bool connect() {
@@ -146,7 +180,7 @@ class PortalConfig {
 
   String page(const String& message = "") const {
     String html;
-    html.reserve(4500);
+    html.reserve(5500);
     html += F(
         "<!doctype html><html lang='ko'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -160,13 +194,20 @@ class PortalConfig {
         "margin-top:22px;padding:13px;border:0;border-radius:10px;background:#1769e0;"
         "color:#fff;font-size:16px;font-weight:700}.notice{padding:12px;"
         "background:#e8f5ee;border-radius:10px}</style></head><body><main class='card'>"
-        "<h1>LoneCare ESP32 설정</h1><p>Wi-Fi와 서버 IP를 입력하세요.</p>");
+        "<h1>LoneCare ESP32 설정</h1>"
+        "<p>설치할 방과 위치, Wi-Fi 및 서버 IP를 입력하세요.</p>");
 
     if (!message.isEmpty()) {
       html += "<div class='notice'>" + escapeHtml(message) + "</div>";
     }
 
     html += "<form method='post' action='/save'>";
+    html += "<label>방 이름</label><input name='room_name' maxlength='100' "
+            "required placeholder='예: 301호' value='" +
+            escapeHtml(roomName_) + "'>";
+    html += "<label>디바이스 위치</label><input name='location' maxlength='100' "
+            "required placeholder='예: 침실 천장' value='" +
+            escapeHtml(deviceLocation_) + "'>";
     html += "<label>Wi-Fi 이름(SSID)</label><input name='ssid' maxlength='32' "
             "required value='" + escapeHtml(ssid_) + "'>";
     html += F(
@@ -185,10 +226,14 @@ class PortalConfig {
     String newSsid = webServer_.arg("ssid");
     String newPassword = webServer_.arg("password");
     String newServer = webServer_.arg("server");
+    String newRoomName = webServer_.arg("room_name");
+    String newDeviceLocation = webServer_.arg("location");
     const long newPort = webServer_.arg("port").toInt();
 
     newSsid.trim();
     newServer.trim();
+    newRoomName.trim();
+    newDeviceLocation.trim();
     newServer.replace("http://", "");
     newServer.replace("https://", "");
     const int slash = newServer.indexOf('/');
@@ -207,6 +252,8 @@ class PortalConfig {
     }
 
     if (newSsid.isEmpty() || newServer.isEmpty() ||
+        newRoomName.isEmpty() || newRoomName.length() > 100 ||
+        newDeviceLocation.isEmpty() || newDeviceLocation.length() > 100 ||
         normalizedPort < 1 || normalizedPort > 65535) {
       webServer_.send(400, "text/html; charset=utf-8",
                       page("입력값을 확인하세요."));
@@ -220,6 +267,8 @@ class PortalConfig {
     }
     preferences_.putString("server", newServer);
     preferences_.putUShort("port", static_cast<uint16_t>(normalizedPort));
+    preferences_.putString("room_name", newRoomName);
+    preferences_.putString("location", newDeviceLocation);
     preferences_.end();
 
     webServer_.send(
@@ -246,7 +295,8 @@ class PortalConfig {
 
   void startPortal() {
     WiFi.disconnect(true);
-    delay(200);
+    WiFi.mode(WIFI_OFF);
+    delay(300);
     WiFi.mode(WIFI_AP);
 
     const String name = apName();
@@ -255,7 +305,15 @@ class PortalConfig {
     WiFi.softAPConfig(portalIp, portalIp, subnetMask);
 
     if (!WiFi.softAP(name.c_str())) {
-      Serial.println("Failed to start configuration AP.");
+      Serial.println("Failed to start AP. Retrying...");
+      WiFi.mode(WIFI_OFF);
+      delay(500);
+      WiFi.mode(WIFI_AP);
+      WiFi.softAPConfig(portalIp, portalIp, subnetMask);
+      if (!WiFi.softAP(name.c_str())) {
+        Serial.println("Configuration AP could not be started.");
+        requestPortalAfterRestart();
+      }
     }
 
     delay(300);

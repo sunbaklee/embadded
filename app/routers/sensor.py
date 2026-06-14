@@ -65,6 +65,8 @@ def receive_sensor_data(payload: SensorDataCreate, db: Session = Depends(get_db)
         device.wifi_rssi = payload.wifi_rssi
     if payload.location is not None:
         device.location = payload.location
+    if payload.room_name is not None:
+        device.room_name = payload.room_name
     if activity_detected:
         device.last_activity_at = now
         device.status = "normal"

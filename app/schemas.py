@@ -24,6 +24,7 @@ class SensorDataCreate(BaseModel):
     battery_level: int | None = Field(default=None, ge=0, le=100)
     wifi_rssi: int | None = Field(default=None, ge=-120, le=0)
     location: str | None = Field(default=None, min_length=1, max_length=100)
+    room_name: str | None = Field(default=None, min_length=1, max_length=100)
 
 
 class SensorDataResponse(BaseModel):

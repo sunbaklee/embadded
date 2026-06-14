@@ -5,7 +5,6 @@
 #include "PortalConfig.h"
 
 const char* DEVICE_ID = "room_001";
-const char* DEVICE_LOCATION = "침실";
 
 const int LD2410_RX_PIN = 16;
 const int LD2410_TX_PIN = 17;
@@ -75,7 +74,8 @@ void sendSensorData() {
 
   JsonDocument document;
   document["device_id"] = DEVICE_ID;
-  document["location"] = DEVICE_LOCATION;
+  document["location"] = portal.deviceLocation();
+  document["room_name"] = portal.roomName();
   // Keep pir_motion for backward compatibility. Presence is the primary
   // monitoring condition used by the server.
   document["pir_motion"] = movingDetected;
@@ -96,6 +96,8 @@ void sendSensorData() {
 
   HTTPClient http;
   http.begin(portal.sensorUrl());
+  http.setConnectTimeout(1500);
+  http.setTimeout(2000);
   http.addHeader("Content-Type", "application/json");
   const int responseCode = http.POST(body);
 
@@ -134,7 +136,7 @@ void setup() {
 }
 
 void loop() {
-  portal.handleResetButton();
+  portal.handleConfigButton();
   updateRadarData();
 
   const unsigned long now = millis();

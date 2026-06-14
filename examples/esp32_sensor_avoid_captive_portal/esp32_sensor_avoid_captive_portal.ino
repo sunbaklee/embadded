@@ -4,7 +4,6 @@
 #include "PortalConfig.h"
 
 const char* DEVICE_ID = "room_001";
-const char* DEVICE_LOCATION = "침실";
 
 #define AVOID_PIN 27
 
@@ -26,11 +25,14 @@ void sendSensorData(bool seatDetected, int avoidRawValue) {
 
   HTTPClient http;
   http.begin(portal.sensorUrl());
+  http.setConnectTimeout(1500);
+  http.setTimeout(2000);
   http.addHeader("Content-Type", "application/json");
 
-  StaticJsonDocument<256> document;
+  StaticJsonDocument<512> document;
   document["device_id"] = DEVICE_ID;
-  document["location"] = DEVICE_LOCATION;
+  document["location"] = portal.deviceLocation();
+  document["room_name"] = portal.roomName();
   document["pressure_detected"] = seatDetected;
   document["avoid_detected"] = seatDetected;
   document["avoid_raw"] = avoidRawValue;
@@ -61,7 +63,7 @@ void setup() {
 }
 
 void loop() {
-  portal.handleResetButton();
+  portal.handleConfigButton();
   const int avoidRawValue = digitalRead(AVOID_PIN);
   const bool seatDetected = readAvoidDetected();
 
